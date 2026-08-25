@@ -7,9 +7,6 @@
   <meta name="description" content="原创六面世界题材的浏览器人生模拟文字冒险：自由开局、成长选择、自动存档与多存档位。">
   <title>六面世界：第二人生</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='8' fill='%23101a24'/%3E%3Cpath d='M32 9 53 21v22L32 55 11 43V21z' fill='none' stroke='%23e4c486' stroke-width='3'/%3E%3Ctext x='32' y='41' text-anchor='middle' font-size='28' fill='%23e4c486'%3E六%3C/text%3E%3C/svg%3E">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@500;600;700;900&family=ZCOOL+XiaoWei&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -22,6 +19,7 @@
       </button>
       <div class="top-actions">
         <span class="save-indicator" id="saveIndicator" aria-live="polite"><i></i> 已自动存档</span>
+        <button class="quiet-button" id="mapTopButton" type="button">地图</button>
         <button class="icon-button" id="helpButton" type="button" title="玩法说明">?</button>
         <button class="quiet-button" id="saveButton" type="button">存档</button>
         <button class="danger-button" id="restartButton" type="button">重开</button>
@@ -75,6 +73,14 @@
           <h2 id="eventTitle">意识自黑暗中浮起</h2>
           <div class="story-text" id="eventText"></div>
           <div class="choice-list" id="choiceList" aria-label="行动选择"></div>
+          <form class="free-action" id="freeActionForm">
+            <div><span class="free-action-label">自由行动</span><small>不局限于上面的选项，写下你真正想做的事</small></div>
+            <div class="free-action-row">
+              <input id="freeActionInput" maxlength="80" placeholder="例如：去公会打听菲托亚失踪者的消息" aria-label="描述自由行动">
+              <button type="submit">执行</button>
+            </div>
+            <p id="freeActionHint">支持修炼、调查、工作、交谈、休息、探索和前往已解锁地点。</p>
+          </form>
         </article>
 
         <section class="chronicle panel" aria-labelledby="chronicleTitle">
@@ -88,13 +94,13 @@
 
       <aside class="right-column">
         <section class="panel map-panel" aria-labelledby="worldTitle">
-          <div class="section-title"><div><p class="eyebrow">WORLD</p><h2 id="worldTitle">旅行地图</h2></div></div>
-          <div class="world-map" aria-hidden="true">
+          <div class="section-title"><div><p class="eyebrow" lang="en">WORLD</p><h2 id="worldTitle">旅行地图</h2></div><button class="text-button" id="openMapButton" type="button">完整地图</button></div>
+          <button class="world-map" id="miniMapButton" type="button" aria-label="打开完整地图">
             <span class="map-continent c1">阿斯拉</span>
             <span class="map-continent c2">米里斯</span>
             <span class="map-continent c3">魔大陆</span>
             <i class="map-pin" id="mapPin"></i>
-          </div>
+          </button>
           <p class="map-caption"><span>当前</span><strong id="mapLocation">命运之门</strong></p>
         </section>
 
@@ -161,6 +167,25 @@
     <div class="modal-heading"><div><p class="eyebrow">ARCHIVE</p><h2>命运书库</h2></div><button class="icon-button" data-close="saveModal" aria-label="关闭">×</button></div>
     <p class="modal-note">自动存档会在每次选择后更新；三个手动存档位可保留不同人生节点。</p>
     <div class="save-slots" id="saveSlots"></div>
+  </dialog>
+
+  <dialog class="modal full-map-modal" id="mapModal">
+    <div class="modal-heading">
+      <div><p class="eyebrow" lang="en">SIX-FACED WORLD</p><h2>六面世界全图</h2></div>
+      <button class="icon-button" data-close="mapModal" aria-label="关闭">×</button>
+    </div>
+    <div class="map-legend"><span><i class="legend-current"></i>当前位置</span><span><i class="legend-open"></i>已解锁</span><span><i class="legend-locked"></i>未解锁</span></div>
+    <div class="full-map-layout">
+      <div class="full-map-canvas" id="fullMapCanvas" aria-label="六面世界地点地图"></div>
+      <aside class="map-detail" id="mapDetail">
+        <p class="eyebrow" lang="en">LOCATION</p>
+        <h3 id="mapDetailTitle">选择一个地点</h3>
+        <p id="mapDetailRegion">点击地图标记查看详情。</p>
+        <p id="mapDetailText">已解锁地点可以消耗时间与钱币前往；未解锁地点会显示解锁条件。</p>
+        <dl><div><dt>危险度</dt><dd id="mapDetailDanger">—</dd></div><div><dt>旅行时间</dt><dd id="mapDetailTime">—</dd></div></dl>
+        <button class="primary-button" id="travelButton" type="button" disabled>选择地点</button>
+      </aside>
+    </div>
   </dialog>
 
   <dialog class="modal help-modal" id="helpModal">

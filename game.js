@@ -20,7 +20,27 @@
   const startChapter = { childhood: "幼年篇", transfer: "转移前夕", youth: "冒险者篇", academy: "魔法大学篇", if: "自由 IF 线" };
   const mapPositions = {
     "布艾纳村": [23, 45], "罗亚城": [31, 52], "魔大陆": [72, 72], "拉诺亚魔法都市": [48, 22],
-    "大森林": [66, 41], "米里斯": [79, 30], "冒险者公会": [56, 58], "中央大陆北部": [48, 35]
+    "大森林": [66, 41], "米里斯": [79, 30], "冒险者公会": [56, 58], "中央大陆北部": [48, 35],
+    "菲托亚难民营": [29, 49], "利卡里斯城": [76, 35], "风之港": [69, 49], "阿斯拉王都": [18, 62],
+    "剑之圣地": [50, 16], "拉庞城": [48, 86], "转移迷宫": [54, 91]
+  };
+
+  const worldLocations = {
+    "布艾纳村": { x: 27, y: 55, region: "中央大陆 · 阿斯拉王国菲托亚领", danger: "低", months: 2, cost: 2, text: "麦田与牧场环绕的小村，也是许多命运最初交汇的地方。转移事件发生后，这里只剩遗迹。" },
+    "罗亚城": { x: 32, y: 59, region: "中央大陆 · 菲托亚领", danger: "低", months: 3, cost: 3, text: "博雷亚斯家治理的要塞都市。剑术、贵族教育与商队让这里比村庄繁忙得多。" },
+    "菲托亚难民营": { x: 30, y: 49, region: "中央大陆 · 菲托亚遗址", danger: "中", months: 3, cost: 2, text: "转移事件后的临时聚居地。失踪者名单不断更新，搜救者从世界各地带回消息。" },
+    "阿斯拉王都": { x: 17, y: 64, region: "中央大陆西部 · 阿斯拉王国", danger: "中", months: 6, cost: 12, text: "世界上最富庶王国的中心。宫廷、骑士团与贵族派系让这里的危险不只来自刀剑。" },
+    "拉诺亚魔法都市": { x: 44, y: 25, region: "中央大陆北部 · 魔法三国", danger: "低", months: 6, cost: 9, text: "魔法大学所在的学术都市。研究者、特别生与来自各族的学生在雪国尖塔间生活。" },
+    "剑之圣地": { x: 51, y: 14, region: "中央大陆北端", danger: "高", months: 7, cost: 10, text: "剑神流总道场所在之地。严寒、训练与实力至上的规矩筛选着每一位求道者。" },
+    "中央大陆北部": { x: 52, y: 35, region: "中央大陆北方诸国", danger: "中", months: 5, cost: 7, text: "贫瘠、多雪且战争频发的区域，佣兵、冒险者和小国势力在此交错。" },
+    "冒险者公会": { x: 57, y: 52, region: "各大陆的公会网络", danger: "中", months: 2, cost: 1, text: "委托、队伍与情报的交汇点。这里代表你当前所在城市的冒险者公会。" },
+    "魔大陆": { x: 78, y: 32, region: "魔大陆", danger: "极高", months: 9, cost: 14, text: "土地贫瘠、魔物强大，各地由不同魔王统治。环境严酷，却并不意味着所有居民都残暴。" },
+    "利卡里斯城": { x: 75, y: 40, region: "魔大陆 · 旧魔帝城", danger: "高", months: 4, cost: 4, text: "位于巨大陨石坑中的城市。原著归乡队伍曾在这里登记为冒险者并使用“Dead End”之名。" },
+    "风之港": { x: 69, y: 50, region: "魔大陆南端", danger: "中", months: 5, cost: 8, text: "连接魔大陆与米里斯大陆的海港。通行许可、船费与种族偏见都可能成为旅途障碍。" },
+    "大森林": { x: 74, y: 58, region: "米里斯大陆北部", danger: "高", months: 5, cost: 7, text: "兽族聚居的广大森林，雨季会封锁道路。德路迪亚村落守护着森林深处的传统。" },
+    "米里斯": { x: 76, y: 69, region: "米里斯大陆南部", danger: "中", months: 5, cost: 8, text: "圣都与冒险者往来的繁华区域。转移事件后，寻找失踪家人的队伍曾在这里汇集情报。" },
+    "拉庞城": { x: 47, y: 85, region: "贝卡利特大陆", danger: "极高", months: 10, cost: 18, text: "沙漠中的迷宫都市。强力冒险者聚集于此，城外遍布危险魔物和古老迷宫。" },
+    "转移迷宫": { x: 54, y: 91, region: "贝卡利特大陆 · 迷宫深处", danger: "致命", months: 2, cost: 6, text: "结构会借转移陷阱改变探索路线的高难迷宫。没有充分准备与可靠队伍，不应贸然进入。" }
   };
 
   const baseStats = {
@@ -166,6 +186,66 @@
       ]
     },
     {
+      id: "fittoa_missing_list", kicker: "原著交汇 · 菲托亚", title: "写满名字的失踪者名册",
+      text: "菲托亚领已变成大片空地与废墟。难民营把生还、失踪和遇难者分册记录，公会不断向各大陆发送副本。你在名册旁看见熟悉姓氏，也听说保罗组织的搜救队正在米里斯追查家人去向。",
+      when: s => s.location === "菲托亚难民营" && s.seen.includes("transfer_calamity"),
+      choices: [
+        { label: "留下来整理跨大陆线索", hint: "学识 +7 · 声望 +5", months: 5, effects: { wisdom: 7, fame: 5 }, relation: ["菲托亚难民", 8], achievement: "菲托亚记录者", result: "你把重复、矛盾和过期消息逐条核对。几户家庭因此得到亲人的确切下落。" },
+        { label: "加入废墟搜救队", hint: "体魄 +6 · 剑术 +3", months: 5, effects: { vitality: 6, sword: 3, fame: 4 }, relation: ["菲托亚难民", 7], result: "废墟没有奇迹般恢复，但你找回的信物、文书与物资让幸存者能够重新开始。" },
+        { label: "带一份名册前往米里斯", hint: "解锁米里斯 · 魅力 +4", months: 6, effects: { charm: 4, money: -5 }, move: "米里斯", unlock: "米里斯", achievement: "跨大陆寻人", result: "你将名册贴身收好，沿商路向米里斯出发。那里可能有搜救队尚未掌握的名字。" }
+      ]
+    },
+    {
+      id: "dead_end_crossing", kicker: "原著交汇 · 归乡旅途", title: "名为“Dead End”的队伍",
+      text: "利卡里斯公会里，关于一支奇怪队伍的议论从未停过：年少魔术师、红发剑士，以及被世人恐惧的斯佩路德战士瑞杰路德。他们正尝试一边接取委托，一边筹集横穿魔大陆的旅费。",
+      when: s => ["利卡里斯城", "魔大陆"].includes(s.location) && s.turn >= 3,
+      choices: [
+        { label: "与他们共同完成一次委托", hint: "魔力 +4 · 剑术 +4 · 瑞杰路德 +8", months: 4, effects: { mana: 4, sword: 4, money: 9 }, relation: ["瑞杰路德", 8], achievement: "与 Dead End 并肩", result: "队伍中的三人各有脾气，却在战斗时彼此补足。你亲眼看见传闻之外的真实。" },
+        { label: "帮助解释斯佩路德族的真相", hint: "魅力 +7 · 声望 +3", months: 3, effects: { charm: 7, fame: 3 }, relation: ["瑞杰路德", 6], result: "一次说明无法抹去数百年的恐惧，但至少有几个被救下的人愿意讲述不同版本。" },
+        { label: "交换路线情报后独自前往风之港", hint: "解锁风之港 · 学识 +4", months: 4, effects: { wisdom: 4, money: -4 }, move: "风之港", unlock: "风之港", result: "你们在城门处分开。向南的道路漫长，沿途仍能听到那支队伍留下的新传闻。" }
+      ]
+    },
+    {
+      id: "paul_search_group", kicker: "原著交汇 · 家人", title: "米里斯的寻人队",
+      text: "酒馆墙上贴满菲托亚失踪者画像。保罗带领的寻人队把冒险者分散到各地，既寻找格雷拉特家人，也尽力帮助所有受灾者。疲惫和坏消息正在消磨每个人。",
+      when: s => s.location === "米里斯" && (s.seen.includes("transfer_calamity") || s.turn >= 9),
+      choices: [
+        { label: "提供自己沿途收集的消息", hint: "学识 +5 · 寻人队 +8", months: 2, effects: { wisdom: 5, fame: 3 }, relation: ["菲托亚寻人队", 8], result: "零散见闻拼成了新的搜索方向。不是所有消息都令人安心，但不确定终于少了一些。" },
+        { label: "陪保罗完成一次危险搜救", hint: "体魄 +5 · 剑术 +5", months: 5, effects: { vitality: 5, sword: 5, fame: 5 }, relation: ["菲托亚寻人队", 10], achievement: "寻人队同伴", result: "这次找到的是另一户人家的孩子。保罗沉默很久，随后仍亲自把好消息送到难民家属手中。" },
+        { label: "前往公会联络更多大陆分部", hint: "魅力 +7 · 钱币 -5", months: 4, effects: { charm: 7, money: -5, fame: 4 }, unlock: "菲托亚难民营", relation: ["菲托亚寻人队", 6], result: "新的通告通过商船和公会网络传播。等待依然漫长，但名单终于跨越了大陆。" }
+      ]
+    },
+    {
+      id: "ranoa_special_students", kicker: "原著交汇 · 魔法大学", title: "特别生们的研究课题",
+      text: "拉诺亚魔法大学聚集着许多不按常理行事的特别生：沉默的白发护卫菲兹、醉心人偶制作的扎诺巴，以及研究召唤与转移现象的假面少女七星。你的课题意外与他们产生交集。",
+      when: s => s.location === "拉诺亚魔法都市" && s.ageMonths >= 180 && s.turn >= 6,
+      choices: [
+        { label: "协助七星校准召唤术式", hint: "需要学识 28 · 学识 +9", requires: s => s.stats.wisdom >= 28, lockText: "学识达到 28", months: 6, effects: { wisdom: 9, mana: 5 }, relation: ["七星", 7], achievement: "转移现象研究者", result: "实验没有打开归乡之门，却排除了一个错误假设。对研究而言，这同样是可靠进展。" },
+        { label: "和扎诺巴改良魔导人偶关节", hint: "学识 +6 · 钱币 +5", months: 5, effects: { wisdom: 6, money: 5 }, relation: ["扎诺巴", 7], result: "材料又报废了几批，新的关节结构却终于能承受魔力驱动。扎诺巴兴奋得忘了时间。" },
+        { label: "邀请菲兹进行无咏唱魔术对练", hint: "魔力 +7 · 菲兹 +7", months: 4, effects: { mana: 7, charm: 2 }, relation: ["菲兹", 7], result: "对方的施法速度让你不得不改变习惯。训练结束时，帽檐下露出一个像是怀念什么的微笑。" }
+      ]
+    },
+    {
+      id: "begaritt_request", kicker: "原著交汇 · 远方来信", title: "来自贝卡利特的求援",
+      text: "一封辗转多地的信抵达北方。信中提到菲托亚失踪者塞妮丝的线索指向贝卡利特大陆迷宫都市拉庞，而先行探索队在一座异常迷宫前受阻。",
+      when: s => s.location === "拉诺亚魔法都市" && s.turn >= 15,
+      choices: [
+        { label: "研究资料，筹备远征", hint: "学识 +8 · 解锁拉庞城", months: 8, effects: { wisdom: 8, money: -8 }, unlock: "拉庞城", achievement: "贝卡利特远征准备", result: "你借阅迷宫记录、准备抗热装备并学习当地语言。危险不会因此消失，但至少不再完全未知。" },
+        { label: "联络可靠队友共同出发", hint: "魅力 +6 · 解锁拉庞城", months: 7, effects: { charm: 6, money: -10 }, unlock: "拉庞城", relation: ["远征队", 8], result: "一个人无法应付高难迷宫。你把治疗、前卫、侦察和补给逐一落实后，才在地图上画下路线。" },
+        { label: "暂缓出发，继续确认情报", hint: "学识 +4 · 不承担远征风险", months: 4, effects: { wisdom: 4 }, result: "谨慎不是怯懦。你继续等待第二份可靠消息，同时为可能到来的旅程积攒资源。" }
+      ]
+    },
+    {
+      id: "teleport_labyrinth_entry", kicker: "原著交汇 · 转移迷宫", title: "不断改变位置的阶梯",
+      text: "迷宫前几层像巨大的蚁穴，岔路、死路与转移陷阱让地图迅速失效。先行者留下的探索记录只能提供部分帮助，队伍必须为每一次深入保留退路。",
+      when: s => s.location === "转移迷宫",
+      choices: [
+        { label: "用记录与标记稳步探索", hint: "学识 +9 · 体魄 -3", months: 5, effects: { wisdom: 9, vitality: -3, fame: 6 }, achievement: "迷宫测绘者", result: "你们没有追求速度，而是确认每一个转移点的对应关系。撤退路线因此真正可靠起来。" },
+        { label: "以强力魔术突破魔物群", hint: "需要魔力 48 · 魔力 +8", requires: s => s.stats.mana >= 48, lockText: "魔力达到 48", months: 4, effects: { mana: 8, vitality: -5, fame: 8 }, achievement: "迷宫破阵", result: "密集魔物被一次压制，但魔力消耗远超预期。你坚持在深入前先让全队休整。" },
+        { label: "承认准备不足，安全撤回拉庞", hint: "体魄 +3 · 保全队伍", months: 2, effects: { vitality: 3 }, move: "拉庞城", result: "没有宝物，也没有英雄事迹，但所有人都活着回到地面。你已经知道下次必须补足什么。" }
+      ]
+    },
+    {
       id: "crossroads", kicker: "旅途", title: "六面世界的岔路",
       text: "商队在道路分叉处扎营。北方通往雪中的魔法都市，东方是米里斯的白色城墙，南方的船则驶向危机四伏的大森林。你可以改变旅途方向。",
       when: s => s.turn >= 4 && s.ageMonths >= 156,
@@ -211,11 +291,39 @@
       else initial[key] = (initial[key] || 0) + value;
     }));
     return {
-      version: 1, profile, ageMonths: startAge[profile.timeline] || 144, location: profile.location,
+      version: 2, profile, ageMonths: startAge[profile.timeline] || 144, location: profile.location,
       chapter: startChapter[profile.timeline] || "自由人生", stats: initial, money: resourceBoost.money, fame: resourceBoost.fame,
       turn: 0, relations: {}, history: [], seen: [], achievements: [], currentEventId: "opening", phase: "event",
+      unlockedLocations: [profile.location], visitedLocations: [profile.location], freeActionCount: 0,
       lastResult: "", lastChoice: "", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
     };
+  }
+
+  function unlockLocation(name, announce = true) {
+    if (!worldLocations[name] || state.unlockedLocations.includes(name)) return false;
+    state.unlockedLocations.push(name);
+    if (announce) showToast(`地图已解锁：${name}`);
+    return true;
+  }
+
+  function refreshUnlockedLocations() {
+    if (!state) return;
+    unlockLocation(state.location, false);
+    if (state.turn >= 2 || state.ageMonths >= 144) unlockLocation("冒险者公会", false);
+    if (state.turn >= 5) unlockLocation("中央大陆北部", false);
+    if (state.seen.includes("transfer_calamity")) {
+      unlockLocation("菲托亚难民营", false);
+      unlockLocation("魔大陆", false);
+      unlockLocation("利卡里斯城", false);
+    }
+    if (["魔大陆", "利卡里斯城"].includes(state.location) || state.seen.includes("dead_end_crossing")) unlockLocation("利卡里斯城", false);
+    if (state.seen.includes("dead_end_crossing") || state.location === "风之港") unlockLocation("风之港", false);
+    if (state.location === "风之港" || state.turn >= 8) unlockLocation("大森林", false);
+    if (["大森林", "米里斯"].includes(state.location) || state.turn >= 10) unlockLocation("米里斯", false);
+    if (state.profile.timeline === "academy" || state.turn >= 7 || state.achievements.includes("魔法大学入学")) unlockLocation("拉诺亚魔法都市", false);
+    if (state.fame >= 18 && state.turn >= 10) unlockLocation("阿斯拉王都", false);
+    if (state.stats.sword >= 35) unlockLocation("剑之圣地", false);
+    if (state.unlockedLocations.includes("拉庞城") && state.stats.wisdom >= 35) unlockLocation("转移迷宫", false);
   }
 
   function openingEvent() {
@@ -240,6 +348,8 @@
   function getEventById(id) {
     if (id === "opening") return openingEvent();
     if (id === "life_folio") return finaleEvent();
+    if (id === "travel_arrival") return { id, kicker: "地图旅行", title: "踏上新的道路", text: "旅途正在继续。", choices: [] };
+    if (id === "free_action") return { id, kicker: "自由行动", title: "自己的选择", text: "你选择了既定选项之外的道路。", choices: [] };
     if (id && id.startsWith("routine-")) return makeRoutine(Number(id.split("-")[1]) || 0);
     return events.find(event => event.id === id) || openingEvent();
   }
@@ -318,6 +428,9 @@
     if (state.stats.wisdom >= 50) unlock("博闻者");
     if (state.fame >= 25) unlock("小有名气");
     if (Object.values(state.relations).some(value => value >= 40)) unlock("不可替代的羁绊");
+    if (state.freeActionCount >= 5) unlock("不走既定道路");
+    if (state.freeActionCount >= 12) unlock("自由人生");
+    refreshUnlockedLocations();
   }
 
   function resolveChoice(choice, index) {
@@ -325,7 +438,12 @@
     const event = currentEvent();
     applyEffects(choice.effects);
     if (choice.relation) updateRelation(choice.relation);
-    if (choice.move) state.location = choice.move;
+    if (choice.unlock) unlockLocation(choice.unlock);
+    if (choice.move) {
+      unlockLocation(choice.move, false);
+      state.location = choice.move;
+      if (!state.visitedLocations.includes(choice.move)) state.visitedLocations.push(choice.move);
+    }
     if (choice.achievement) unlock(choice.achievement);
     state.ageMonths += choice.months || 3;
     state.turn += 1;
@@ -370,6 +488,7 @@
 
   function render() {
     if (!state) return;
+    refreshUnlockedLocations();
     const p = state.profile;
     $("characterTitle").textContent = p.name;
     $("characterOrigin").textContent = `${p.race} · ${p.identity}`;
@@ -406,6 +525,7 @@
       ? `<p class="result">${escapeHtml(state.lastResult)}</p><p>时间向前流动。现在你是 ${escapeHtml(formatAge())}，身处${escapeHtml(state.location)}。</p>`
       : `<p>${escapeHtml(event.text)}</p>`;
     const list = $("choiceList");
+    $("freeActionForm").classList.toggle("hidden", state.phase === "result");
     list.innerHTML = "";
     if (state.phase === "result") {
       const button = document.createElement("button");
@@ -456,6 +576,127 @@
     $("mapPin").style.top = `${position[1]}%`;
   }
 
+  const unlockRequirements = {
+    "菲托亚难民营": "经历转移事件后解锁", "阿斯拉王都": "声望达到 18 且完成 10 回合", "拉诺亚魔法都市": "完成 7 回合或从魔法大学篇开局",
+    "剑之圣地": "剑术达到 35", "利卡里斯城": "抵达魔大陆或经历转移事件", "风之港": "推进魔大陆归乡路线",
+    "大森林": "抵达风之港或完成 8 回合", "米里斯": "抵达大森林或完成 10 回合", "拉庞城": "获得贝卡利特远征线索",
+    "转移迷宫": "解锁拉庞城且学识达到 35", "中央大陆北部": "完成 5 回合",
+    "冒险者公会": "年龄达到 12 岁或完成 2 回合"
+  };
+  let selectedMapLocation = null;
+
+  function openMap() {
+    refreshUnlockedLocations();
+    renderFullMap();
+    if (!$("mapModal").open) $("mapModal").showModal();
+  }
+
+  function renderFullMap() {
+    const canvas = $("fullMapCanvas");
+    canvas.innerHTML = "";
+    Object.entries(worldLocations).forEach(([name, info]) => {
+      const isUnlocked = state.unlockedLocations.includes(name);
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = `map-node${isUnlocked ? "" : " locked"}${state.location === name ? " current" : ""}`;
+      button.style.left = `${info.x}%`;
+      button.style.top = `${info.y}%`;
+      button.dataset.location = name;
+      button.setAttribute("aria-label", `${name}，${isUnlocked ? "已解锁" : "未解锁"}${state.location === name ? "，当前位置" : ""}`);
+      button.innerHTML = `<i></i><span>${escapeHtml(name)}</span>`;
+      button.addEventListener("click", () => selectMapLocation(name));
+      canvas.appendChild(button);
+    });
+    selectMapLocation(selectedMapLocation && worldLocations[selectedMapLocation] ? selectedMapLocation : state.location);
+  }
+
+  function selectMapLocation(name) {
+    selectedMapLocation = name;
+    const info = worldLocations[name];
+    const unlocked = state.unlockedLocations.includes(name);
+    $("mapDetailTitle").textContent = `${unlocked ? "◆" : "◇"} ${name}`;
+    $("mapDetailRegion").textContent = info.region;
+    $("mapDetailText").textContent = unlocked ? info.text : `尚未解锁：${unlockRequirements[name] || "继续探索世界并推进人生"}。`;
+    $("mapDetailDanger").textContent = info.danger;
+    $("mapDetailTime").textContent = `${info.months} 个月 · ${info.cost} 钱币`;
+    const button = $("travelButton");
+    const current = state.location === name;
+    const affordable = state.money >= info.cost;
+    button.disabled = !unlocked || current || !affordable;
+    button.textContent = current ? "当前位置" : !unlocked ? "地点未解锁" : !affordable ? `钱币不足（需要 ${info.cost}）` : `前往 ${name}`;
+    document.querySelectorAll(".map-node").forEach(node => node.classList.toggle("selected", node.dataset.location === name));
+  }
+
+  function travelTo(name) {
+    const info = worldLocations[name];
+    if (!info || !state.unlockedLocations.includes(name) || state.location === name || state.money < info.cost) return;
+    const from = state.location;
+    state.money -= info.cost;
+    state.ageMonths += info.months;
+    state.turn += 1;
+    state.location = name;
+    if (!state.visitedLocations.includes(name)) state.visitedLocations.push(name);
+    state.currentEventId = "travel_arrival";
+    state.lastChoice = `从${from}前往${name}`;
+    state.lastResult = `你整理行装，从${from}出发。旅途耗时${info.months}个月、花费${info.cost}钱币。抵达${name}后，新的事件与人物已经进入你的命运范围。`;
+    state.phase = "result";
+    state.chapter = chapterForAge();
+    state.history.unshift({ age: formatAge(), location: name, title: "地图旅行", choice: state.lastChoice, result: state.lastResult });
+    state.history = state.history.slice(0, 40);
+    checkMilestones();
+    autoSave();
+    $("mapModal").close();
+    render();
+    showToast(`已抵达：${name}`);
+  }
+
+  function runFreeAction(action) {
+    const text = action.trim();
+    if (!text) { $("freeActionHint").textContent = "请先写下想做的事情。"; return; }
+    const namedDestination = Object.keys(worldLocations).find(name => text.includes(name));
+    if (namedDestination && /(去|前往|旅行|出发|赶往|回到)/.test(text)) {
+      if (state.unlockedLocations.includes(namedDestination)) {
+        travelTo(namedDestination);
+        $("freeActionInput").value = "";
+      } else {
+        $("freeActionHint").textContent = `${namedDestination}尚未解锁，可打开完整地图查看条件。`;
+        showToast("目的地尚未解锁");
+      }
+      return;
+    }
+
+    const effects = {};
+    const outcomes = [];
+    let months = 3;
+    const add = (key, value) => { effects[key] = (effects[key] || 0) + value; };
+    if (/(魔术|魔法|咏唱|术式|魔力)/.test(text)) { add("mana", 4); add("wisdom", 1); outcomes.push("反复调整魔力回路后，你对施法的控制更稳定了"); months += 1; }
+    if (/(剑|战斗|锻炼|跑步|体能|挥砍)/.test(text)) { add("sword", 3); add("vitality", 3); outcomes.push("汗水和失误没有被省略，动作却逐渐变得可靠"); months += 1; }
+    if (/(调查|研究|阅读|学习|图书|打听|记录)/.test(text)) { add("wisdom", 5); outcomes.push("你核对多方信息，没有把第一条传闻当成答案"); }
+    if (/(交谈|拜访|帮助|说服|结识|道歉|陪伴)/.test(text)) { add("charm", 4); updateRelation(["当地居民", 3]); outcomes.push("对方记住了你的态度，关系也有了继续发展的可能"); }
+    if (/(工作|赚钱|委托|经商|售卖|制作|打工)/.test(text)) { add("money", 8); add("charm", 1); outcomes.push("你付出时间完成工作，得到一笔不算丰厚但可靠的收入"); months += 1; }
+    if (/(休息|睡觉|治疗|疗伤|放松|静养)/.test(text)) { add("vitality", 6); outcomes.push("你允许身体真正恢复，而不是带着疲惫继续逞强"); months = 2; }
+    if (/(探索|寻找|巡逻|冒险|追踪)/.test(text)) { add(pick(["vitality", "wisdom", "charm"]), 4); add("fame", 1); outcomes.push(`你在${state.location}发现了平时容易忽略的道路与消息`); }
+    const knownName = ["洛琪希", "希露菲", "艾莉丝", "瑞杰路德", "七星", "菲兹", "扎诺巴", "保罗"].find(name => text.includes(name));
+    if (knownName) { updateRelation([knownName, 4]); add("charm", 2); outcomes.push(`你与${knownName}的这次互动被彼此记住`); }
+    if (!outcomes.length) { add("wisdom", 2); add("charm", 2); outcomes.push("事情没有按照预设选项发展，但你认真尝试，并从结果中得到新的认识"); }
+
+    applyEffects(effects);
+    state.freeActionCount += 1;
+    state.turn += 1;
+    state.ageMonths += Math.min(months, 7);
+    state.currentEventId = "free_action";
+    state.lastChoice = text;
+    state.lastResult = `${outcomes.join("；")}。这次自由行动由你的描述触发，世界为它推进了${Math.min(months, 7)}个月。`;
+    state.phase = "result";
+    state.chapter = chapterForAge();
+    state.history.unshift({ age: formatAge(), location: state.location, title: "自由行动", choice: text, result: state.lastResult });
+    state.history = state.history.slice(0, 40);
+    checkMilestones();
+    autoSave();
+    $("freeActionInput").value = "";
+    render();
+  }
+
   function escapeHtml(value) {
     return String(value).replace(/[&<>'"]/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[char]));
   }
@@ -471,15 +712,25 @@
     $("saveIndicator").innerHTML = "<i></i> 已自动存档";
   }
 
+  function migrateState(saved) {
+    if (!saved || !saved.profile || !saved.stats) return null;
+    saved.phase = saved.phase || "event";
+    saved.achievements = saved.achievements || [];
+    saved.relations = saved.relations || {};
+    saved.history = saved.history || [];
+    saved.seen = saved.seen || [];
+    saved.currentEventId = saved.currentEventId || "opening";
+    saved.unlockedLocations = saved.unlockedLocations || [saved.location, saved.profile.location].filter(Boolean);
+    saved.visitedLocations = saved.visitedLocations || [saved.location].filter(Boolean);
+    saved.freeActionCount = saved.freeActionCount || 0;
+    saved.version = 2;
+    return saved;
+  }
+
   function loadState(saved) {
-    if (!saved || !saved.profile || !saved.stats) return false;
-    state = saved;
-    state.phase = state.phase || "event";
-    state.achievements = state.achievements || [];
-    state.relations = state.relations || {};
-    state.history = state.history || [];
-    state.seen = state.seen || [];
-    state.currentEventId = state.currentEventId || "opening";
+    state = migrateState(saved);
+    if (!state) return false;
+    refreshUnlockedLocations();
     $("startModal").close();
     render();
     showToast("已继续上次人生");
@@ -517,7 +768,8 @@
   function loadSlot(index) {
     const saved = slots()[index];
     if (!saved) return;
-    state = deepCopy(saved);
+    state = migrateState(deepCopy(saved));
+    refreshUnlockedLocations();
     autoSave();
     render();
     $("saveModal").close();
@@ -588,6 +840,11 @@
   $("randomizeButton").addEventListener("click", randomizeForm);
   $("continueButton").addEventListener("click", () => loadState(safeParse(localStorage.getItem(STORAGE_KEY))));
   $("saveButton").addEventListener("click", () => { renderSlots(); $("saveModal").showModal(); });
+  $("mapTopButton").addEventListener("click", openMap);
+  $("openMapButton").addEventListener("click", openMap);
+  $("miniMapButton").addEventListener("click", openMap);
+  $("travelButton").addEventListener("click", () => selectedMapLocation && travelTo(selectedMapLocation));
+  $("freeActionForm").addEventListener("submit", event => { event.preventDefault(); runFreeAction($("freeActionInput").value); });
   $("helpButton").addEventListener("click", () => $("helpModal").showModal());
   $("restartButton").addEventListener("click", () => $("restartModal").showModal());
   $("confirmRestart").addEventListener("click", () => { $("restartModal").close(); state = null; openStart(); });
