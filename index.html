@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101a24">
+  <meta name="description" content="原创六面世界题材的浏览器人生模拟文字冒险：自由开局、成长选择、自动存档与多存档位。">
+  <title>六面世界：第二人生</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='8' fill='%23101a24'/%3E%3Cpath d='M32 9 53 21v22L32 55 11 43V21z' fill='none' stroke='%23e4c486' stroke-width='3'/%3E%3Ctext x='32' y='41' text-anchor='middle' font-size='28' fill='%23e4c486'%3E六%3C/text%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@500;600;700;900&family=ZCOOL+XiaoWei&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#storyCard">跳到剧情</a>
+  <div class="page-shell">
+    <header class="topbar">
+      <button class="brand" id="brandButton" type="button" aria-label="返回游戏顶部">
+        <span class="brand-mark" aria-hidden="true">六</span>
+        <span><strong>六面世界</strong><small>第二人生模拟器</small></span>
+      </button>
+      <div class="top-actions">
+        <span class="save-indicator" id="saveIndicator" aria-live="polite"><i></i> 已自动存档</span>
+        <button class="icon-button" id="helpButton" type="button" title="玩法说明">?</button>
+        <button class="quiet-button" id="saveButton" type="button">存档</button>
+        <button class="danger-button" id="restartButton" type="button">重开</button>
+      </div>
+    </header>
+
+    <main class="game-grid" id="gameMain">
+      <aside class="panel character-panel" aria-labelledby="characterTitle">
+        <div class="portrait-wrap">
+          <div class="portrait" id="portrait" aria-hidden="true"><span>旅</span></div>
+          <div class="level-seal" id="rankSeal">初心者</div>
+        </div>
+        <div class="character-heading">
+          <p class="eyebrow" id="characterOrigin">人族 · 转生者</p>
+          <h1 id="characterTitle">旅人</h1>
+          <p id="characterGoal">想要认真活过这一次</p>
+        </div>
+
+        <section class="stats" aria-label="人物属性">
+          <div class="stat-row"><span>体魄</span><div class="meter"><i id="barVitality"></i></div><b id="statVitality">0</b></div>
+          <div class="stat-row"><span>魔力</span><div class="meter mana"><i id="barMana"></i></div><b id="statMana">0</b></div>
+          <div class="stat-row"><span>剑术</span><div class="meter sword"><i id="barSword"></i></div><b id="statSword">0</b></div>
+          <div class="stat-row"><span>学识</span><div class="meter wisdom"><i id="barWisdom"></i></div><b id="statWisdom">0</b></div>
+          <div class="stat-row"><span>魅力</span><div class="meter charm"><i id="barCharm"></i></div><b id="statCharm">0</b></div>
+        </section>
+
+        <div class="resource-grid">
+          <div><span>钱币</span><strong id="moneyValue">0</strong></div>
+          <div><span>声望</span><strong id="fameValue">0</strong></div>
+          <div><span>回合</span><strong id="turnValue">0</strong></div>
+        </div>
+
+        <section class="mini-section" aria-labelledby="relationsTitle">
+          <div class="section-title"><h2 id="relationsTitle">人物羁绊</h2><span id="relationCount">0</span></div>
+          <div class="relations" id="relationsList"><p class="empty-note">命运尚未让你与谁相遇。</p></div>
+        </section>
+      </aside>
+
+      <section class="story-column">
+        <div class="hero-strip">
+          <div>
+            <p class="eyebrow" id="chapterLabel">序章 · 命运之门</p>
+            <h2 id="locationLabel">转生之间</h2>
+          </div>
+          <div class="date-plaque"><small>甲龙历</small><strong id="ageLabel">0岁</strong></div>
+        </div>
+
+        <article class="story-card" id="storyCard" aria-live="polite" tabindex="-1">
+          <div class="story-icon" id="storyIcon" aria-hidden="true">✦</div>
+          <p class="story-kicker" id="eventKicker">新的生命</p>
+          <h2 id="eventTitle">意识自黑暗中浮起</h2>
+          <div class="story-text" id="eventText"></div>
+          <div class="choice-list" id="choiceList" aria-label="行动选择"></div>
+        </article>
+
+        <section class="chronicle panel" aria-labelledby="chronicleTitle">
+          <div class="section-title">
+            <div><p class="eyebrow">CHRONICLE</p><h2 id="chronicleTitle">人生书页</h2></div>
+            <button class="text-button" id="exportButton" type="button">导出传记</button>
+          </div>
+          <ol id="historyList"></ol>
+        </section>
+      </section>
+
+      <aside class="right-column">
+        <section class="panel map-panel" aria-labelledby="worldTitle">
+          <div class="section-title"><div><p class="eyebrow">WORLD</p><h2 id="worldTitle">旅行地图</h2></div></div>
+          <div class="world-map" aria-hidden="true">
+            <span class="map-continent c1">阿斯拉</span>
+            <span class="map-continent c2">米里斯</span>
+            <span class="map-continent c3">魔大陆</span>
+            <i class="map-pin" id="mapPin"></i>
+          </div>
+          <p class="map-caption"><span>当前</span><strong id="mapLocation">命运之门</strong></p>
+        </section>
+
+        <section class="panel destiny-panel" aria-labelledby="destinyTitle">
+          <div class="section-title"><div><p class="eyebrow">DESTINY</p><h2 id="destinyTitle">命运轨迹</h2></div></div>
+          <div class="destiny-score"><span id="destinyScore">0</span><small>人生回响</small></div>
+          <ul id="achievementList"><li class="locked">尚未获得人生印记</li></ul>
+        </section>
+
+        <section class="panel guide-card">
+          <p class="eyebrow">目标</p>
+          <h2 id="goalCardTitle">认真生活</h2>
+          <p id="goalCardText">每次抉择都会改变属性、羁绊和将来会遇见的事件。</p>
+        </section>
+      </aside>
+    </main>
+
+    <footer>
+      <p>非官方同人性质的原创规则实验 · 不使用官方美术素材 · 数据仅保存在你的浏览器</p>
+    </footer>
+  </div>
+
+  <dialog class="modal start-modal" id="startModal">
+    <form method="dialog" id="startForm">
+      <div class="start-visual">
+        <div class="start-copy">
+          <p class="eyebrow">A SECOND LIFE AWAITS</p>
+          <h2>这一次，认真地活下去。</h2>
+          <p>在剑与魔法的六面世界出生、成长、相遇。没有唯一主线，你的选择就是命运。</p>
+        </div>
+      </div>
+      <div class="start-fields">
+        <div class="modal-heading">
+          <div><p class="eyebrow">CHARACTER CREATION</p><h2>书写你的开端</h2></div>
+          <button type="button" class="dice-button" id="randomizeButton">⚄ 随机命运</button>
+        </div>
+        <label>你的名字<input id="nameInput" name="name" maxlength="12" value="旅人" required></label>
+        <div class="field-grid">
+          <label>身份<select id="identityInput" name="identity">
+            <option>转生者</option><option>原住民</option><option>贵族子弟</option><option>冒险者后裔</option><option>平民</option>
+          </select></label>
+          <label>种族<select id="raceInput" name="race">
+            <option>人族</option><option>魔族</option><option>兽族</option><option>米格尔德族</option><option>矮人族</option><option>混血</option>
+          </select></label>
+          <label>时代<select id="timelineInput" name="timeline">
+            <option value="childhood">幼年篇</option><option value="transfer">转移事件前夕</option><option value="youth">青年冒险篇</option><option value="academy">魔法大学篇</option><option value="if">自由 IF 线</option>
+          </select></label>
+          <label>出生地<select id="locationInput" name="location">
+            <option>布艾纳村</option><option>罗亚城</option><option>魔大陆</option><option>拉诺亚魔法都市</option><option>大森林</option><option>米里斯</option>
+          </select></label>
+        </div>
+        <label>今生愿望<select id="goalInput" name="goal">
+          <option value="magic">穷尽魔术之道</option><option value="sword">成为剑术强者</option><option value="adventure">看遍六面世界</option><option value="bonds">守护重要的人</option><option value="quiet">过平静而充实的一生</option>
+        </select></label>
+        <div class="start-actions">
+          <button class="primary-button" value="start" id="beginButton">开启第二人生 <span>→</span></button>
+          <button class="quiet-button hidden" type="button" id="continueButton">继续上次人生</button>
+        </div>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="modal save-modal" id="saveModal">
+    <div class="modal-heading"><div><p class="eyebrow">ARCHIVE</p><h2>命运书库</h2></div><button class="icon-button" data-close="saveModal" aria-label="关闭">×</button></div>
+    <p class="modal-note">自动存档会在每次选择后更新；三个手动存档位可保留不同人生节点。</p>
+    <div class="save-slots" id="saveSlots"></div>
+  </dialog>
+
+  <dialog class="modal help-modal" id="helpModal">
+    <div class="modal-heading"><div><p class="eyebrow">GUIDE</p><h2>怎么玩</h2></div><button class="icon-button" data-close="helpModal" aria-label="关闭">×</button></div>
+    <div class="help-grid">
+      <div><b>01</b><h3>选择行动</h3><p>阅读事件并选择回应。属性和羁绊会决定后续能否出现特殊选项。</p></div>
+      <div><b>02</b><h3>承担结果</h3><p>人生会自动前进。失败不会立刻结束，也可能打开意想不到的道路。</p></div>
+      <div><b>03</b><h3>保存命运</h3><p>游戏自动保存在本机。你也可以建立三个手动存档或导出人生传记。</p></div>
+      <div><b>04</b><h3>再次转生</h3><p>“重开”会开始新人生，但不会删除你的手动存档。</p></div>
+    </div>
+  </dialog>
+
+  <dialog class="modal confirm-modal" id="restartModal">
+    <p class="eyebrow">REINCARNATION</p><h2>确定要结束这一轮人生吗？</h2>
+    <p>当前进度仍会留在自动存档和手动存档中。新人生会从角色创建开始。</p>
+    <div class="dialog-actions"><button class="quiet-button" data-close="restartModal">返回</button><button class="danger-button" id="confirmRestart">开始新人生</button></div>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="game.js"></script>
+</body>
+</html>
