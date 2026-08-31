@@ -27,7 +27,8 @@
     </header>
 
     <main class="game-grid" id="gameMain">
-      <aside class="panel character-panel" aria-labelledby="characterTitle">
+      <aside class="panel character-panel mobile-collapsed" aria-labelledby="characterTitle">
+        <button class="mobile-panel-toggle" id="mobilePanelToggle" type="button" aria-expanded="false">展开角色详情 ⌄</button>
         <div class="portrait-wrap">
           <div class="portrait" id="portrait" aria-hidden="true"><span>旅</span></div>
           <div class="level-seal" id="rankSeal">初心者</div>
@@ -48,9 +49,18 @@
 
         <div class="resource-grid">
           <div><span>钱币</span><strong id="moneyValue">0</strong></div>
+          <div><span>口粮</span><strong id="foodValue">0</strong></div>
+          <div><span>疲劳</span><strong id="fatigueValue">0</strong></div>
+          <div><span>士气</span><strong id="moraleValue">0</strong></div>
           <div><span>声望</span><strong id="fameValue">0</strong></div>
           <div><span>回合</span><strong id="turnValue">0</strong></div>
         </div>
+
+        <section class="equipment-card" aria-labelledby="equipmentTitle">
+          <div class="section-title"><h2 id="equipmentTitle">行装与生计</h2><button class="text-button" id="shopButton" type="button">商店</button></div>
+          <p id="equipmentSummary">木剑 · 学徒法杖 · 旅行斗篷</p>
+          <small id="survivalWarning">口粮充足，能够安心行动。</small>
+        </section>
 
         <section class="progression-card" aria-labelledby="growthTitle">
           <div class="section-title"><h2 id="growthTitle">成长等级</h2><span id="playerLevel">Lv.1</span></div>
@@ -75,6 +85,12 @@
           <div class="date-plaque"><small>甲龙历</small><strong id="ageLabel">0岁</strong></div>
         </div>
 
+        <section class="daily-actions" aria-label="生计快捷行动">
+          <span>生计与休整 · 每次一个月</span>
+          <button type="button" data-daily="work">包饭工作</button>
+          <button type="button" data-daily="forage">采集口粮</button>
+          <button type="button" data-daily="rest">免费休息</button>
+        </section>
         <article class="story-card" id="storyCard" aria-live="polite" tabindex="-1">
           <div class="story-icon" id="storyIcon" aria-hidden="true">✦</div>
           <p class="story-kicker" id="eventKicker">新的生命</p>
@@ -131,6 +147,11 @@
           <h2 id="goalCardTitle">认真生活</h2>
           <p id="goalCardText">每次抉择都会改变属性、羁绊和将来会遇见的事件。</p>
         </section>
+
+        <section class="panel tutorial-panel" aria-labelledby="tutorialTitle">
+          <div class="section-title"><div><p class="eyebrow">FIRST STEPS</p><h2 id="tutorialTitle">新手旅程</h2></div><span id="tutorialProgress">0/5</span></div>
+          <ol id="tutorialList"></ol>
+        </section>
       </aside>
     </main>
 
@@ -138,6 +159,15 @@
       <p>非官方同人性质的原创规则实验 · 不使用官方美术素材 · 数据仅保存在你的浏览器</p>
     </footer>
   </div>
+
+  <nav class="mobile-nav" aria-label="手机快捷导航">
+    <button type="button" data-mobile-target="character">角色</button>
+    <button type="button" data-mobile-target="story">剧情</button>
+    <button type="button" data-mobile-target="choices">选项</button>
+    <button type="button" data-mobile-target="skills">技能</button>
+    <button type="button" data-mobile-target="map">地图</button>
+    <button type="button" data-mobile-target="save">存档</button>
+  </nav>
 
   <dialog class="modal start-modal" id="startModal">
     <form method="dialog" id="startForm">
@@ -208,14 +238,26 @@
     <div class="modal-heading"><div><p class="eyebrow" lang="en">SKILLS & DISCIPLINES</p><h2>技能与招式</h2></div><button class="icon-button" data-close="skillsModal" aria-label="关闭">×</button></div>
     <div class="skill-overview" id="skillOverview"></div>
     <details class="modal-note"><summary>等级门槛与三流派经验</summary><p id="rankGuide"></p></details>
-    <p class="modal-note">修炼消耗一个月；暂停中的剧情会保留。远方人物互动以书信与训练笔记呈现。招式阶位为本作平衡设定。</p>
+    <p class="modal-note">修炼消耗一个月、1钱币和1口粮，疲劳+5；疲劳达到85须先休息。对练开始时消耗1口粮、疲劳+5，退出不退还。角色路线是本作平衡设定。</p>
     <button class="primary-button" type="button" id="practiceButton">进入技能对练</button>
-    <div class="skill-tabs" role="tablist">
+    <section class="talent-section" aria-labelledby="talentTitle">
+      <div class="section-title"><h3 id="talentTitle">成长路线</h3><span id="talentPoints">0 可用点数</span></div>
+      <p class="modal-note">每获得60人物经验得到1点。三条路线可以混合，但越早专精越快形成独特玩法。</p>
+      <div class="talent-tree" id="talentTree"></div>
+    </section>
+    <div class="skill-tabs" aria-label="技能分类">
       <button class="active" type="button" data-skill-tab="magic">魔术</button>
       <button type="button" data-skill-tab="sword">剑术</button>
       <button type="button" data-skill-tab="life">生活技能</button>
     </div>
     <div class="skill-list" id="skillList"></div>
+  </dialog>
+
+  <dialog class="modal shop-modal" id="shopModal">
+    <div class="modal-heading"><div><p class="eyebrow" lang="en">MARKET & EQUIPMENT</p><h2>商店与行装</h2></div><button class="icon-button" data-close="shopModal" aria-label="关闭">×</button></div>
+    <p class="modal-note" id="shopContext">各地物价与商品会受当地声望影响。购买装备后自动装备。</p>
+    <div class="shop-reputation" id="reputationList"></div>
+    <div class="shop-list" id="shopList"></div>
   </dialog>
 
   <dialog class="modal interaction-modal" id="interactionModal">
@@ -248,7 +290,7 @@
 
   <dialog class="modal confirm-modal" id="restartModal">
     <p class="eyebrow">REINCARNATION</p><h2>确定要结束这一轮人生吗？</h2>
-    <p>当前进度仍会留在自动存档和手动存档中。新人生会从角色创建开始。</p>
+    <p>开启新人生会覆盖自动存档，但保留已有手动存档。请先手动保存想保留的这轮人生。</p>
     <div class="dialog-actions"><button class="quiet-button" data-close="restartModal">返回</button><button class="danger-button" id="confirmRestart">开始新人生</button></div>
   </dialog>
 

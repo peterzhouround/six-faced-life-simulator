@@ -67,6 +67,7 @@
       { id: "water_ball", name: "水球术", tier: 0, mark: "水", description: "初级水魔术。训练魔力塑形、速度与无咏唱控制。" },
       { id: "healing", name: "治愈术", tier: 0, mark: "愈", description: "处理擦伤与轻伤的基础治愈魔术。" },
       { id: "stone_cannon", name: "岩炮弹", tier: 1, mark: "岩", description: "压缩岩石并高速射出的中级攻击魔术，可继续强化旋转与硬度。" },
+      { id: "fire_ball", name: "火球术", tier: 1, mark: "火", description: "技能树解锁的火系攻击术。持续燃烧适合压制，但在森林与城镇必须谨慎。" },
       { id: "sonic_boom", name: "音速冲击", tier: 2, mark: "风", description: "利用风压改变距离与敌人姿态的上级魔术。" },
       { id: "disturb_magic", name: "乱魔", tier: 2, mark: "乱", description: "干扰对方正在构筑的魔术，需要细致的魔力感知。" },
       { id: "cumulonimbus", name: "豪雷积层云", tier: 3, mark: "雷", description: "改变局部天气的圣级水魔术，消耗巨大且需要长时间准备。" }
@@ -118,8 +119,67 @@
   };
   const mainEventIds = new Set(["transfer_calamity", "dead_end_crossing", "paul_reunion", "orsted_crossing", "fittoa_homecoming", "academy_reunion", "begaritt_request", "teleport_labyrinth_entry"]);
   const mainSideRequirements = { transfer_calamity: 8, dead_end_crossing: 5, paul_reunion: 5, orsted_crossing: 6, fittoa_homecoming: 5, academy_reunion: 8, begaritt_request: 8, teleport_labyrinth_entry: 6 };
+  const regionLabels = ["阿斯拉", "北方诸国", "米里斯", "魔大陆", "贝卡利特"];
+  const equipmentCatalog = [
+    { id: "rations", name: "三份旅行口粮", type: "supply", cost: 5, food: 3, description: "补充3份口粮。低于2份时，长途行动会迅速累积疲劳。" },
+    { id: "medicine", name: "药草与绷带", type: "supply", cost: 7, item: "medicine", description: "获得1份药品；可在自由行动中输入“使用药品”。" },
+    { id: "iron_sword", name: "平衡铁剑", type: "weapon", cost: 18, bonus: 3, description: "剑术训练收益+1，对练剑技伤害+3。" },
+    { id: "mage_staff", name: "青辉法杖", type: "focus", cost: 20, bonus: 3, description: "魔术训练收益+1，对练魔术伤害+3。" },
+    { id: "leather_armor", name: "轻皮甲", type: "armor", cost: 24, bonus: 3, description: "旅行遭遇受到的体魄损失减少3。" },
+    { id: "travel_cloak", name: "防雨旅行斗篷", type: "armor", cost: 14, bonus: 1, description: "旅行消耗的口粮减少1份，最低仍消耗1份。" }
+    ,{ id: "repair", name: "保养全套行装", type: "service", cost: 4, description: "装备耐久恢复至100。耐久为0时装备加成失效。" }
+  ];
+  const talentNodes = [
+    { id: "mana_control", branch: "魔术", name: "魔力精控", description: "魔术训练额外获得3领域经验。", requires: [] },
+    { id: "element_fire", branch: "魔术", name: "火系研究", description: "自由行动可准确识别火魔术，并领悟火球术。", requires: ["mana_control"] },
+    { id: "silent_cast", branch: "魔术", name: "无咏唱构筑", description: "对练魔术消耗减少2，最低1。", requires: ["element_fire"] },
+    { id: "sword_foundation", branch: "剑术", name: "稳固架势", description: "剑术训练额外获得3流派经验。", requires: [] },
+    { id: "sword_god_path", branch: "剑术", name: "剑神流·先手", description: "解锁上级剑神流修炼；剑神流招式伤害+3。", requires: ["sword_foundation"] },
+    { id: "water_god_path", branch: "剑术", name: "水神流·反击", description: "解锁“流”的修炼；水神流招式伤害+3。", requires: ["sword_foundation"] },
+    { id: "north_god_path", branch: "剑术", name: "北神流·奇策", description: "解锁应变步修炼；北神流招式伤害+3。", requires: ["sword_foundation"] },
+    { id: "battle_reading", branch: "剑术", name: "战场识读", description: "对练格挡伤害由25%降至15%。", requires: ["sword_foundation"] },
+    { id: "finishing_strike", branch: "剑术", name: "决胜一击", description: "对练剑技伤害+5。", requires: ["battle_reading"] },
+    { id: "field_lore", branch: "生存", name: "野外知识", description: "每次旅行少消耗1份口粮。", requires: [] },
+    { id: "caravan_network", branch: "生存", name: "商路人脉", description: "工作收入+3，商店价格降低10%。", requires: ["field_lore"] },
+    { id: "trusted_face", branch: "生存", name: "可信之人", description: "人物互动额外获得1点羁绊，地区声望获取+1。", requires: ["caravan_network"] }
+  ];
+  const locationEncounters = {
+    "布艾纳村": ["你帮农户赶回走失的羊，得到一份干粮。", "骤雨冲坏小路，你绕行并记下安全渡口。"],
+    "罗亚城": ["城门盘查比平时严格，你的身份让守卫多问了几句。", "商队缺少搬运人手，你帮忙后得到小费。"],
+    "魔大陆": ["岩甲魔兽从风蚀柱后冲出，你在恶战后保住补给。", "当地魔族猎人提醒你避开红色菌毯，省下一场中毒。"],
+    "利卡里斯城": ["公会里有人拿斯佩路德传闻吓唬新人，你听到两种完全不同的说法。", "坑底集市物价混乱，你核对三家摊位才买到合理补给。"],
+    "风之港": ["海风卷走通行文件，你和码头工追了半条栈桥。", "船员分享潮汐表，下一段航程更安全。"],
+    "大森林": ["雨季水位突然上涨，你放弃近路才保住行装。", "兽族猎人发现你的足迹，确认来意后指出安全营地。"],
+    "米里斯": ["圣骑士盘问队伍中的魔族成员，你必须谨慎说明来意。", "失踪者公告旁有人认出一个名字，新的线索被记入册中。"],
+    "中央大陆北部": ["佣兵冲突封住道路，你在雪地里多绕了一天。", "索尔达特一类的冒险者提醒你别独自接下高危委托。"],
+    "拉诺亚魔法都市": ["失控的练习魔术击碎路灯，你协助学生安全停止术式。", "研究者交换材料目录，你获得一条便宜采购渠道。"],
+    "剑之圣地": ["严寒让握剑的手失去知觉，你被迫重新学习热身。", "道场旁观者只记录你是否在失误后继续练习。"],
+    "拉庞城": ["沙暴掩埋路标，队伍依靠前一晚的记录返回营地。", "迷宫商人高价兜售假地图，你识破了重复涂改的路线。"],
+    "转移迷宫": ["地面术式突然发光，队伍立刻后撤才没被分散。", "旧标记与现实错位，你们花时间重新确认出口。"],
+    "菲托亚难民营": ["新一批名册送到营地，你帮忙合并重复记录。", "废墟里找到一枚旧徽章，家属终于得到确切消息。"],
+    "阿斯拉王都": ["贵族车队要求让路，你的身份决定了卫兵的语气。", "宫廷流言在酒馆里变了三个版本，你没有轻易下注。"],
+    "冒险者公会": ["一张报酬异常高的委托缺少关键细节，你选择先追问。", "新人队伍争执分工，你用自己的经历提出折中方案。"]
+  };
+  const tutorialGoals = [
+    { id: "choice", label: "完成第一个剧情选择", done: s => s.tutorial.actions.includes("choice") || s.seen.length > 0 },
+    { id: "train", label: "修炼或领悟一次技能", done: s => s.tutorial.actions.includes("train") },
+    { id: "bond", label: "与已相遇的人物互动", done: s => s.tutorial.actions.includes("bond") },
+    { id: "travel", label: "打开地图并完成一次旅行", done: s => s.tutorial.actions.includes("travel") },
+    { id: "save", label: "建立一个手动存档", done: s => s.tutorial.actions.includes("save") }
+  ];
 
   const events = [
+    {
+      id: "pre_transfer_alarm", kicker: "时代专属 · 转移前夕", title: "不肯散去的空中光点",
+      text: "天空中的魔力团持续扩大。村民争论着是否只是罕见天象，家人把问题交给你：今天先准备什么？这不是灾难倒计时，你仍能选择如何生活。",
+      when: s => s.profile.timeline === "transfer" && !s.seen.includes("transfer_calamity") && ["布艾纳村", "罗亚城"].includes(s.location) && s.turn >= 2,
+      priority: 11,
+      choices: [
+        {label:"准备一份家庭应急包",hint:"口粮 +3 · 钱币 -2",months:1,effects:{money:-2,wisdom:2},food:3,requires:s=>s.money>=2,lockText:"需要2钱币",result:"你把干粮、姓名记录和绷带放在固定位置。准备不能阻止异变，但至少让家人知道慌乱时先拿什么。"},
+        {label:"记录魔力团的变化",hint:"学识 +4 · 魔力 +2",months:1,effects:{wisdom:4,mana:2},result:"你把观测日期与光点位置写进笔记，没有用无法验证的猜测吓唬邻里。"},
+        {label:"约好失散后的联络方式",hint:"家人 +5 · 魅力 +2",months:1,effects:{charm:2},relation:["家人",5],result:"你们写下姓名、熟人的住处和公会位置；家人终于不再只围着天空争论。"}
+      ]
+    },
     {
       id: "old_grimoire", kicker: "童年的发现", title: "阁楼里的旧魔术书",
       text: "雨水敲打木窗。你在积灰的箱底翻出一本残缺魔术书，书页描绘着水球术的魔力回路。大人说你还太小，可身体里的某种感觉正在回应这些文字。",
@@ -465,13 +525,17 @@
       else initial[key] = (initial[key] || 0) + value;
     }));
     return {
-      version: 3, profile, ageMonths: startAge[profile.timeline] || 144, location: profile.location,
+      version: 4, profile, ageMonths: startAge[profile.timeline] || 144, location: profile.location,
       chapter: startChapter[profile.timeline] || "自由人生", stats: initial, money: resourceBoost.money, fame: resourceBoost.fame,
       turn: 0, relations: {}, history: [], seen: [], achievements: [], currentEventId: "opening", phase: "event",
       unlockedLocations: [profile.location], visitedLocations: [profile.location], freeActionCount: 0,
       progression: { xp: 0, magicXp: initial.mana * 2, swordStyles: { swordGod: initial.sword * 2, waterGod: 0, northGod: 0 }, lifeXp: 0 },
       skills: { water_ball: 15, healing: 5, arm_drop: 10, human_language: 25 },
       story: { sideSinceMain: 0, mainCompleted: 0 },
+      survival: { food: 8, fatigue: 0, morale: 70 },
+      equipment: { weapon: "练习木剑", focus: "学徒法杖", armor: "旅行斗篷", durability: 100, bonuses: { weapon: 0, focus: 0, armor: 0 } },
+      inventory: { medicine: 0, ownedEquipment: [] }, talents: [], regionalReputation: Object.fromEntries(regionLabels.map(name => [name, 0])),
+      tutorial: { actions: [] }, encounterCount: 0,
       lastResult: "", lastChoice: "", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
     };
   }
@@ -527,6 +591,149 @@
     state.progression.magicXp += magic;
     state.progression.swordStyles[style] = (state.progression.swordStyles[style] || 0) + sword;
     state.progression.lifeXp += life;
+  }
+
+  function currentRegion(location = state.location) {
+    const region = (worldLocations[location] || {}).region || "";
+    if (/魔大陆/.test(region)) return "魔大陆";
+    if (/米里斯|大森林/.test(region)) return "米里斯";
+    if (/贝卡利特|迷宫/.test(region)) return "贝卡利特";
+    if (/北|魔法三国|剑之圣地/.test(region)) return "北方诸国";
+    return "阿斯拉";
+  }
+
+  function markTutorial(action) {
+    if (!state.tutorial.actions.includes(action)) state.tutorial.actions.push(action);
+  }
+
+  function talentPoints() {
+    return Math.max(0, Math.floor(state.progression.xp / 60) - state.talents.length);
+  }
+
+  function hasTalent(id) { return state.talents.includes(id); }
+
+  function equipmentBonus(slot) { return state.equipment.durability > 0 ? (state.equipment.bonuses[slot] || 0) : 0; }
+
+  function addRegionalReputation(amount, region = currentRegion()) {
+    const bonus = hasTalent("trusted_face") && amount > 0 ? 1 : 0;
+    state.regionalReputation[region] = clamp((state.regionalReputation[region] || 0) + amount + bonus, -20, 100);
+  }
+
+  function applyLivingCost(months = 1, intensity = 1, mode = "normal") {
+    let needed = mode === "travel" ? travelFoodCost(months) : Math.max(1, Math.ceil(months / 3));
+    if (mode === "rest") needed = Math.max(0, needed - 1);
+    const consumed = Math.min(state.survival.food, needed);
+    const shortage = needed - consumed;
+    state.survival.food -= consumed;
+    state.survival.fatigue = clamp(state.survival.fatigue + intensity + shortage * 10);
+    state.survival.morale = clamp(state.survival.morale - shortage * 8 - (state.survival.fatigue >= 80 ? 2 : 0));
+    if (mode === "travel" || mode === "training") state.equipment.durability = clamp(state.equipment.durability - (mode === "travel" ? 5 : 3));
+    if (shortage) state.stats.vitality = clamp(state.stats.vitality - shortage * 2);
+    return { needed, shortage };
+  }
+
+  function travelFoodCost(months) {
+    let needed = Math.max(1, Math.ceil(months / 3));
+    if (hasTalent("field_lore")) needed--;
+    if (state.equipment.durability > 0 && state.equipment.armor === "防雨旅行斗篷") needed--;
+    needed = Math.max(1, needed);
+    return needed;
+  }
+
+  function resolveTravelEncounter(name) {
+    const pool = locationEncounters[name] || [`你平安抵达${name}，沿途记下了道路与补给点。`];
+    const index = Math.floor(Math.random() * pool.length);
+    state.encounterCount += 1;
+    let consequence = "";
+    if (index === 0) {
+      const danger = ({ "低": 1, "中": 3, "高": 5, "极高": 7, "致命": 9 }[(worldLocations[name] || {}).danger] || 2);
+      const loss = danger <= 3 ? 0 : Math.max(0, danger - equipmentBonus("armor"));
+      state.stats.vitality = clamp(state.stats.vitality - loss);
+      state.survival.fatigue = clamp(state.survival.fatigue + 5);
+      addRegionalReputation(2);
+      consequence = loss ? `你承受${loss}点体魄损失；装备抵消了${danger - loss}点风险。` : "你花时间处理了这件事，没有受伤。";
+      if (name === "布艾纳村") state.survival.food = Math.min(30, state.survival.food + 1);
+    } else {
+      state.money += 2; state.stats.wisdom = clamp(state.stats.wisdom + 1); addRegionalReputation(1);
+      consequence = "你获得2钱币与1点学识。";
+    }
+    return `${pool[index]} ${consequence}`;
+  }
+
+  function environmentalFeedback() {
+    const region = currentRegion();
+    const rep = state.regionalReputation[region] || 0;
+    const race = state.profile.race;
+    const humanRegion = ["阿斯拉", "米里斯"].includes(region);
+    let attitude = rep >= 25 ? `你在${region}已颇受信任，商人与公会愿意透露更重要的消息。` : rep < 0 ? `你在${region}留下了负面印象，交易和盘查都更困难。` : `你在${region}仍是普通旅人，需要用行动建立名声。`;
+    if (humanRegion && ["魔族", "米格尔德族"].includes(race) && rep < 20) attitude += " 部分居民因魔族外貌保持距离，初次交涉更谨慎。";
+    if (region === "魔大陆" && race === "人族" && rep < 15) attitude += " 人族面孔在这里同样显眼，当地人会先观察你是否尊重他们的规矩。";
+    if (state.profile.identity === "贵族子弟" && region === "阿斯拉") attitude += " 贵族出身让守卫更客气，也让政治对手更容易注意到你。";
+    if (state.profile.timeline === "transfer" && !state.seen.includes("transfer_calamity")) attitude += " 天空中的魔力团正在扩大，危机感一天比一天明确。";
+    return attitude;
+  }
+
+  function renderTutorial() {
+    const done = tutorialGoals.filter(goal => goal.done(state)).length;
+    $("tutorialProgress").textContent = `${done}/${tutorialGoals.length}`;
+    $("tutorialList").innerHTML = tutorialGoals.map((goal, index) => `<li class="${goal.done(state) ? "done" : ""}"><span>${goal.done(state) ? "✓" : index + 1}</span><button type="button" data-guide="${goal.id}">${escapeHtml(goal.label)}</button></li>`).join("");
+    $("tutorialList").querySelectorAll("[data-guide]").forEach(button => button.addEventListener("click", () => navigateGame(({choice:"story",train:"skills",bond:"character",travel:"map",save:"save"})[button.dataset.guide])));
+  }
+
+  function renderTalents() {
+    $("talentPoints").textContent = `${talentPoints()} 可用点数`;
+    $("talentTree").innerHTML = ["魔术", "剑术", "生存"].map(branch => `<div class="talent-branch"><h4>${branch}路线</h4>${talentNodes.filter(node => node.branch === branch).map(node => {
+      const learned = hasTalent(node.id);
+      const ready = node.requires.every(hasTalent) && talentPoints() > 0;
+      return `<button type="button" class="talent-node${learned ? " learned" : ""}" data-talent="${node.id}" ${learned || !ready ? "disabled" : ""}><b>${learned ? "✓ " : ""}${node.name}</b><small>${node.description}</small>${!learned && node.requires.length && !node.requires.every(hasTalent) ? "<em>需要上一节点</em>" : ""}</button>`;
+    }).join("")}</div>`).join("");
+    $("talentTree").querySelectorAll("[data-talent]").forEach(button => button.addEventListener("click", () => learnTalent(button.dataset.talent)));
+  }
+
+  function learnTalent(id) {
+    const node = talentNodes.find(item => item.id === id);
+    if (!node || hasTalent(id) || talentPoints() < 1 || !node.requires.every(hasTalent)) return;
+    state.talents.push(id);
+    if (id === "element_fire") state.skills.fire_ball = Math.max(state.skills.fire_ball || 0, 10);
+    autoSave(); renderSkills(); render(); showToast(`已解锁成长路线：${node.name}`);
+  }
+
+  function shopPrice(item) {
+    const rep = state.regionalReputation[currentRegion()] || 0;
+    const discount = (hasTalent("caravan_network") ? .1 : 0) + (rep >= 30 ? .1 : rep < 0 ? -.15 : 0);
+    return Math.max(1, Math.ceil(item.cost * (1 - discount)));
+  }
+
+  function openShop() { renderShop(); $("shopModal").showModal(); }
+
+  function renderShop() {
+    const region = currentRegion();
+    $("shopContext").textContent = `${state.location} · ${region}声望 ${state.regionalReputation[region] || 0}。声望30可再减价10%；负声望会涨价。当前钱币 ${state.money}。`;
+    $("reputationList").innerHTML = regionLabels.map(name => `<span class="${name === region ? "current" : ""}">${name}<b>${state.regionalReputation[name] || 0}</b></span>`).join("");
+    $("shopList").innerHTML = equipmentCatalog.map(item => {
+      const price = shopPrice(item);
+      const owned = item.type === "service" ? state.equipment.durability >= 100 : item.type !== "supply" && [state.equipment.weapon, state.equipment.focus, state.equipment.armor].includes(item.name);
+      const canSwap = !owned && state.inventory.ownedEquipment.includes(item.id);
+      return `<article><div><h3>${escapeHtml(item.name)}</h3><p>${escapeHtml(item.description)}</p></div><button type="button" data-buy="${item.id}" ${owned || (!canSwap && state.money < price) ? "disabled" : ""}>${owned ? item.type === "service" ? "耐久完好" : "已装备" : canSwap ? "免费换装" : `${price} 钱币`}</button></article>`;
+    }).join("");
+    $("shopList").querySelectorAll("[data-buy]").forEach(button => button.addEventListener("click", () => buyItem(button.dataset.buy)));
+  }
+
+  function buyItem(id) {
+    const item = equipmentCatalog.find(entry => entry.id === id);
+    if (!item) return;
+    const canSwap = state.inventory.ownedEquipment.includes(item.id);
+    const price = canSwap ? 0 : shopPrice(item);
+    if (state.money < price) return;
+    if (item.food && state.survival.food >= 30) { showToast("口粮最多携带30份"); return; }
+    if (item.type === "service" && state.equipment.durability >= 100) return;
+    if (["weapon", "focus", "armor"].includes(item.type) && state.equipment[item.type] === item.name) return;
+    state.money -= price;
+    if (item.food) state.survival.food = Math.min(30, state.survival.food + item.food);
+    else if (item.item) state.inventory[item.item] = (state.inventory[item.item] || 0) + 1;
+    else if (item.type === "service") state.equipment.durability = 100;
+    else { state.equipment[item.type] = item.name; state.equipment.bonuses[item.type] = item.bonus || 0; if (!canSwap) state.inventory.ownedEquipment.push(item.id); }
+    autoSave(); renderShop(); render(); showToast(`已购买：${item.name}`);
   }
 
   function isMainEvent(event) {
@@ -642,7 +849,13 @@
 
   function updateRelation([name, delta] = []) {
     if (!name) return;
-    state.relations[name] = clamp((state.relations[name] || 0) + delta, -20, 100);
+    let initial = 0;
+    if (!(name in state.relations)) {
+      const region = currentRegion();
+      if (["阿斯拉", "米里斯"].includes(region) && ["魔族", "米格尔德族"].includes(state.profile.race) && (state.regionalReputation[region] || 0) < 20) initial = -2;
+      if (region === "阿斯拉" && state.profile.identity === "贵族子弟") initial += 2;
+    }
+    state.relations[name] = clamp((state.relations[name] || initial) + delta, -20, 100);
   }
 
   function unlock(achievement) {
@@ -653,6 +866,7 @@
   }
 
   function checkMilestones() {
+    if (tutorialGoals.every(goal => goal.done(state))) unlock("独立踏上旅程");
     if (state.progression.magicXp >= 100) unlock("上级魔术师");
     if (state.stats.sword >= 50) unlock("剑术求道者");
     if (state.stats.wisdom >= 50) unlock("博闻者");
@@ -671,6 +885,7 @@
     if (choice.requires && !choice.requires(state)) return;
     const event = currentEvent();
     applyEffects(choice.effects);
+    if (choice.food) state.survival.food = Math.min(30, state.survival.food + choice.food);
     if (choice.relation) updateRelation(choice.relation);
     if (choice.revealFitz) state.relations["希露菲"] = Math.max(state.relations["希露菲"] || 0, state.relations["菲兹"] || 0);
     if (choice.unlock) unlockLocation(choice.unlock);
@@ -683,10 +898,13 @@
     const elapsedMonths = isMainEvent(event) ? Math.max(1, Math.ceil((choice.months || 3) * .65)) : Math.max(1, Math.ceil((choice.months || 3) * .42));
     state.ageMonths += elapsedMonths;
     state.turn += 1;
+    applyLivingCost(elapsedMonths, 2); markTutorial("choice");
     const effects = choice.effects || {};
     addProgress({ xp: 6 + Math.max(0, effects.fame || 0), magic: Math.max(0, effects.mana || 0) * 2, sword: Math.max(0, effects.sword || 0) * 2, life: Math.max(0, (effects.wisdom || 0) + (effects.charm || 0)) });
     if (effects.mana > 0) state.skills.water_ball = clamp((state.skills.water_ball || 0) + Math.max(2, effects.mana));
     if (effects.sword > 0) state.skills.arm_drop = clamp((state.skills.arm_drop || 0) + Math.max(2, effects.sword));
+    if (effects.fame > 0) addRegionalReputation(Math.max(1, Math.ceil(effects.fame / 3)));
+    if (choice.achievement) state.survival.morale = clamp(state.survival.morale + 6);
     if (choice.unlockSkill) state.skills[choice.unlockSkill] = Math.max(state.skills[choice.unlockSkill] || 0, 10);
     if (isMainEvent(event)) { state.story.sideSinceMain = 0; state.story.mainCompleted += 1; }
     else state.story.sideSinceMain += 1;
@@ -744,6 +962,9 @@
       $(`bar${id}`).style.width = `${state.stats[key]}%`;
     });
     $("moneyValue").textContent = state.money;
+    $("foodValue").textContent = state.survival.food;
+    $("fatigueValue").textContent = state.survival.fatigue;
+    $("moraleValue").textContent = state.survival.morale;
     $("fameValue").textContent = state.fame;
     $("turnValue").textContent = state.turn;
     $("chapterLabel").textContent = `${state.chapter} · ${rank()}`;
@@ -753,6 +974,8 @@
     $("destinyScore").textContent = destinyScore();
     $("goalCardTitle").textContent = goalCopy[p.goal][0];
     $("goalCardText").textContent = goalCopy[p.goal][1];
+    $("equipmentSummary").textContent = `${state.equipment.weapon} · ${state.equipment.focus} · ${state.equipment.armor} · 耐久 ${state.equipment.durability}/100`;
+    $("survivalWarning").textContent = state.survival.food <= 1 ? "口粮告急：行动会造成额外疲劳和体魄损失。" : state.survival.fatigue >= 75 ? "疲劳过高：建议休息或使用药品。" : state.survival.morale <= 30 ? "士气低落：与伙伴相处或完成目标可以恢复。" : "状态稳定，可以安排训练、工作或旅行。";
     renderProgression();
     renderMainQuest();
     renderMap();
@@ -760,6 +983,7 @@
     renderAchievements();
     renderHistory();
     renderStory();
+    renderTutorial();
   }
 
   function renderStory() {
@@ -769,7 +993,7 @@
     $("storyIcon").textContent = state.phase === "result" ? "◇" : "✦";
     $("eventText").innerHTML = state.phase === "result"
       ? `<p class="result">${escapeHtml(state.lastResult)}</p><p>时间向前流动。现在你是 ${escapeHtml(formatAge())}，身处${escapeHtml(state.location)}。</p>`
-      : `<p>${escapeHtml(event.text)}</p>`;
+      : `<p>${escapeHtml(event.text)}</p><p class="world-feedback"><b>世界反馈：</b>${escapeHtml(environmentalFeedback())}</p>`;
     const list = $("choiceList");
     $("freeActionForm").classList.toggle("hidden", state.phase === "result");
     list.innerHTML = "";
@@ -851,6 +1075,17 @@
     return domain === "magic" ? state.progression.magicXp : domain === "sword" ? (state.progression.swordStyles[skill.style] || 0) : state.progression.lifeXp;
   }
 
+  function skillAvailable(skill, domain) {
+    const route = skillRoute(skill);
+    return skillXp(skill, domain) >= masteryTiers[skill.tier].xp && (!route || hasTalent(route) || (state.skills[skill.id] || 0) > 0);
+  }
+
+  function skillRoute(skill) {
+    if (skill.id === "fire_ball") return "element_fire";
+    if (skill.style && skill.tier >= (skill.style === "swordGod" ? 2 : 1)) return ({swordGod:"sword_god_path", waterGod:"water_god_path", northGod:"north_god_path"})[skill.style];
+    return null;
+  }
+
   function preservePendingEvent() {
     if (state.phase === "event") state.resumeEventId = state.currentEventId;
   }
@@ -866,30 +1101,36 @@
     $("skillOverview").innerHTML = [
       [playerLevel(), "人物等级"], [adventure, "冒险者等级"], [tierForXp(state.progression.magicXp).name, "最高魔术等级"], [tierForXp(bestSwordXp()).name, "最高剑术等级"]
     ].map(([value, label]) => `<div><strong>${value}</strong><small>${label}</small></div>`).join("");
+    renderTalents();
     document.querySelectorAll("[data-skill-tab]").forEach(button => button.classList.toggle("active", button.dataset.skillTab === currentSkillTab));
     $("rankGuide").textContent = `领域经验门槛：${masteryTiers.map(t => `${t.name} ${t.xp}`).join(" → ")}。剑神流 ${state.progression.swordStyles.swordGod} / 水神流 ${state.progression.swordStyles.waterGod} / 北神流 ${state.progression.swordStyles.northGod}。这是游戏内简化评定，不等于获得原著唯一的神级称号。人物每30经验升1级（上限50）；冒险者：${adventureTiers.map(t => `${t.name} ${t.xp}`).join(" / ")}。`;
     $("skillList").innerHTML = skillCatalog[currentSkillTab].map(skill => {
       const required = masteryTiers[skill.tier];
-      const canLearn = skillXp(skill, currentSkillTab) >= required.xp;
+      const canLearn = skillAvailable(skill, currentSkillTab);
       const proficiency = clamp(state.skills[skill.id] || 0);
       const known = proficiency > 0;
-      return `<article class="skill-item${canLearn ? "" : " locked"}"><span class="skill-rank-icon">${escapeHtml(skill.mark)}</span><div><h3>${escapeHtml(skill.name)} · ${masteryTiers[skill.tier].name}</h3><p>${escapeHtml(skill.description)}</p><div class="skill-progress"><i style="width:${proficiency}%"></i></div><p>${known ? `熟练度 ${proficiency}/100` : canLearn ? "已达到领悟条件" : `需要${required.name}领域等级`}</p></div><button type="button" data-train-skill="${skill.id}" data-domain="${currentSkillTab}" ${canLearn ? "" : "disabled"}>${known ? "修炼招式" : "尝试领悟"}</button></article>`;
+      const route = talentNodes.find(node => node.id === skillRoute(skill));
+      return `<article class="skill-item${canLearn ? "" : " locked"}"><span class="skill-rank-icon">${escapeHtml(skill.mark)}</span><div><h3>${escapeHtml(skill.name)} · ${masteryTiers[skill.tier].name}</h3><p>${escapeHtml(skill.description)}</p><div class="skill-progress"><i style="width:${proficiency}%"></i></div><p>${known ? `熟练度 ${proficiency}/100` : canLearn ? "已达到领悟条件" : `需要${required.name}领域等级${route ? `和${route.name}路线` : ""}`} · 1钱币 / 1口粮</p></div><button type="button" data-train-skill="${skill.id}" data-domain="${currentSkillTab}" ${canLearn ? "" : "disabled"}>${known ? "修炼招式" : "尝试领悟"}</button></article>`;
     }).join("");
     $("skillList").querySelectorAll("[data-train-skill]").forEach(button => button.addEventListener("click", () => trainSkill(button.dataset.trainSkill, button.dataset.domain)));
   }
 
   function trainSkill(skillId, domain) {
     const skill = skillCatalog[domain].find(item => item.id === skillId);
-    if (!skill || skillXp(skill, domain) < masteryTiers[skill.tier].xp) return;
+    if (!skill || !skillAvailable(skill, domain)) return;
+    if (state.money < 1 || state.survival.food < 1) { showToast("修炼需要1钱币和至少1份口粮"); return; }
+    if (state.survival.fatigue >= 85) { showToast("疲劳达到85，请先休息再训练"); return; }
     preservePendingEvent();
+    state.money -= 1;
     const old = state.skills[skillId] || 0;
     state.skills[skillId] = clamp(old + (old ? 12 : 10));
-    if (domain === "magic") { addProgress({ xp: 5, magic: 10 }); state.stats.mana = clamp(state.stats.mana + 2); }
-    else if (domain === "sword") { addProgress({ xp: 5, sword: 10, style: skill.style || "swordGod" }); state.stats.sword = clamp(state.stats.sword + 2); state.stats.vitality = clamp(state.stats.vitality + 1); }
+    if (domain === "magic") { addProgress({ xp: 5, magic: 10 + (hasTalent("mana_control") ? 3 : 0) + (equipmentBonus("focus") ? 1 : 0) }); state.stats.mana = clamp(state.stats.mana + 2); }
+    else if (domain === "sword") { addProgress({ xp: 5, sword: 10 + (hasTalent("sword_foundation") ? 3 : 0) + (equipmentBonus("weapon") ? 1 : 0), style: skill.style || "swordGod" }); state.stats.sword = clamp(state.stats.sword + 2); state.stats.vitality = clamp(state.stats.vitality + 1); }
     else { addProgress({ xp: 5, life: 10 }); state.stats.wisdom = clamp(state.stats.wisdom + 2); }
     state.turn += 1;
     state.ageMonths += 1;
     state.story.sideSinceMain += 1;
+    applyLivingCost(1, 5, "training"); markTutorial("train");
     state.currentEventId = "free_action";
     state.lastChoice = `${old ? "修炼" : "领悟"}${skill.name}`;
     state.lastResult = old ? `你把${skill.name}拆成更小的动作反复练习，熟练度提升到 ${state.skills[skillId]}/100。真正可靠的招式来自长期重复。` : `你第一次完成了${skill.name}的基本结构。它还不能在危险战斗中随意使用，需要继续提高熟练度。`;
@@ -903,7 +1144,7 @@
 
   const combatMoves = {
     water_ball: { cost: 6, damage: 11 }, healing: { cost: 9, heal: 18 },
-    stone_cannon: { cost: 10, damage: 20 }, sonic_boom: { cost: 12, damage: 14, guard: true },
+    stone_cannon: { cost: 10, damage: 20 }, fire_ball: { cost: 11, damage: 22 }, sonic_boom: { cost: 12, damage: 14, guard: true },
     disturb_magic: { cost: 8, damage: 3, interrupt: true }, cumulonimbus: { cost: 25, damage: 36 },
     arm_drop: { cost: 5, damage: 12 }, water_guard: { cost: 5, damage: 3, guard: true }, north_feint: { cost: 5, damage: 5, guard: true }, flow: { cost: 8, damage: 8, guard: true },
     north_step: { cost: 6, damage: 7, guard: true }, silent_sword: { cost: 11, damage: 22 },
@@ -912,6 +1153,8 @@
 
   function openPractice() {
     if (!state.combat) {
+      if (state.survival.food < 1 || state.survival.fatigue >= 85) { showToast("对练需要1口粮且疲劳低于85，请先补给或休息"); return; }
+      applyLivingCost(1, 5, "training");
       state.combat = { hp: 70, enemy: 75 + Math.min(playerLevel(), 20), mana: 40, stamina: 35, round: 0, log: ["练习傀儡启动。先观察它的动作。"], used: [] };
       autoSave();
     }
@@ -925,9 +1168,10 @@
     const buttons = Object.entries(combatMoves).filter(([id]) => state.skills[id] > 0).map(([id, move]) => {
       const skill = [...skillCatalog.magic, ...skillCatalog.sword].find(s => s.id === id);
       const resource = skill.style ? "stamina" : "mana";
-      return `<button type="button" data-combat="${id}" ${c[resource] < move.cost ? "disabled" : ""}><b>${skill.name}</b><small>${move.cost}${resource === "mana" ? "魔力" : "体力"} · ${move.heal ? "治疗" : move.interrupt ? "打断魔术" : move.guard ? "攻防兼备" : "攻击"}</small></button>`;
+      const actualCost = Math.max(1, move.cost - (resource === "mana" && hasTalent("silent_cast") ? 2 : 0));
+      return `<button type="button" data-combat="${id}" ${c[resource] < actualCost ? "disabled" : ""}><b>${skill.name}</b><small>${actualCost}${resource === "mana" ? "魔力" : "体力"} · ${move.heal ? "治疗" : move.interrupt ? "打断魔术" : move.guard ? "攻防兼备" : "攻击"}</small></button>`;
     });
-    buttons.push('<button type="button" data-combat="guard"><b>格挡调息</b><small>减伤75% · 恢复10体力</small></button>', '<button type="button" data-combat="rest"><b>集中恢复</b><small>恢复15魔力 · 承受攻击</small></button>', '<button type="button" data-combat="retreat"><b>结束练习</b><small>不获得结算奖励</small></button>');
+    buttons.push(`<button type="button" data-combat="guard"><b>格挡调息</b><small>减伤${hasTalent("battle_reading") ? 85 : 75}% · 恢复10体力</small></button>`, '<button type="button" data-combat="rest"><b>集中恢复</b><small>恢复15魔力 · 承受攻击</small></button>', '<button type="button" data-combat="retreat"><b>结束练习</b><small>不获得结算奖励</small></button>');
     $("combatActions").innerHTML = buttons.join("");
     $("combatActions").querySelectorAll("[data-combat]").forEach(button => button.addEventListener("click", () => combatTurn(button.dataset.combat)));
     $("combatLog").innerHTML = c.log.slice(-6).map(line => `<li>${escapeHtml(line)}</li>`).join("");
@@ -945,15 +1189,19 @@
       if (!move || !state.skills[id]) return;
       const isSword = skillCatalog.sword.some(s => s.id === id);
       const resource = isSword ? "stamina" : "mana";
-      if (c[resource] < move.cost) return;
-      c[resource] -= move.cost;
-      damage = (move.damage || 0) + (move.damage ? Math.floor(clamp(state.skills[id]) / 20) : 0);
+      const actualCost = Math.max(1, move.cost - (!isSword && hasTalent("silent_cast") ? 2 : 0));
+      if (c[resource] < actualCost) return;
+      c[resource] -= actualCost;
+      damage = move.damage ? move.damage + Math.floor(clamp(state.skills[id]) / 20) + equipmentBonus(isSword ? "weapon" : "focus") + (isSword && hasTalent("finishing_strike") ? 5 : 0) : 0;
+      const swordSkill = skillCatalog.sword.find(skill => skill.id === id);
+      if (swordSkill && hasTalent(({swordGod:"sword_god_path",waterGod:"water_god_path",northGod:"north_god_path"})[swordSkill.style])) damage += 3;
       c.enemy = Math.max(0, c.enemy - damage);
       c.hp = Math.min(70, c.hp + (move.heal || 0));
       guarded = move.guard; interrupted = move.interrupt && c.round % 3 === 1;
       if (!c.used.includes(id)) c.used.push(id);
     }
-    const incoming = c.enemy === 0 || interrupted ? 0 : Math.ceil([10, 18, 24][c.round % 3] * (guarded ? .25 : 1));
+    const guardedRatio = hasTalent("battle_reading") ? .15 : .25;
+    const incoming = c.enemy === 0 || interrupted ? 0 : Math.ceil([10, 18, 24][c.round % 3] * (guarded ? guardedRatio : 1));
     c.hp = Math.max(0, c.hp - incoming);
     c.round += 1;
     c.log.push(`回合${c.round}：${id === "guard" ? "格挡调息" : id === "rest" ? "集中恢复" : [...skillCatalog.magic, ...skillCatalog.sword].find(s => s.id === id).name}，造成${damage}伤害，受到${incoming}伤害${interrupted ? "（成功打断）" : ""}。`);
@@ -964,6 +1212,7 @@
       for (const skill of c.used) state.skills[skill] = clamp(state.skills[skill] + (won ? 6 : 2));
       addProgress({ xp: won ? 12 : 4 });
       state.turn++; state.ageMonths++; state.story.sideSinceMain++;
+      markTutorial("train");
       state.lastChoice = won ? "对练胜利" : "对练复盘";
       state.lastResult = `${won ? "你成功击倒了练习傀儡。" : "教官停止练习，与你复盘资源和出手时机。"}用过的招式熟练度 +${won ? 6 : 2}，人物经验 +${won ? 12 : 4}。一轮训练周期为一个月；原来的剧情仍在等待你。`;
       state.history.unshift({ age: formatAge(), location: state.location, title: "技能对练", choice: state.lastChoice, result: state.lastResult });
@@ -1015,7 +1264,10 @@
         unlock(`${name}·${threshold === 20 ? "相互理解" : "共同约定"}`);
       }
     }
+    if (hasTalent("trusted_face")) updateRelation([name, 1]);
     state.turn += 1; state.ageMonths += action === "travel" ? 2 : 1; state.story.sideSinceMain += 1;
+    applyLivingCost(action === "travel" ? 2 : 1, action === "train" ? 4 : 1); markTutorial("bond");
+    if (action !== "train") state.survival.morale = clamp(state.survival.morale + 5);
     state.currentEventId = "free_action"; state.lastChoice = `${action === "talk" ? "交谈" : action === "train" ? "训练" : "同行"}：${name}`; state.lastResult = result; state.phase = "result";
     state.history.unshift({ age: formatAge(), location: state.location, title: "人物互动", choice: state.lastChoice, result }); state.history = state.history.slice(0, 40);
     checkMilestones(); autoSave(); $("interactionModal").close(); render();
@@ -1063,30 +1315,32 @@
     $("mapDetailRegion").textContent = info.region;
     $("mapDetailText").textContent = unlocked ? info.text : `尚未解锁：${unlockRequirements[name] || "继续探索世界并推进人生"}。`;
     $("mapDetailDanger").textContent = info.danger;
-    $("mapDetailTime").textContent = `${info.months} 个月 · ${info.cost} 钱币`;
+    $("mapDetailTime").textContent = `${info.months} 个月 · ${info.cost} 钱币 · ${travelFoodCost(info.months)} 口粮`;
     const button = $("travelButton");
     const current = state.location === name;
-    const affordable = state.money >= info.cost;
+    const foodCost = travelFoodCost(info.months);
+    const affordable = state.money >= info.cost && state.survival.food >= foodCost;
     button.disabled = !unlocked || current || !affordable;
-    button.textContent = current ? "当前位置" : !unlocked ? "地点未解锁" : !affordable ? `钱币不足（需要 ${info.cost}）` : `前往 ${name}`;
+    button.textContent = current ? "当前位置" : !unlocked ? "地点未解锁" : state.money < info.cost ? `钱币不足（需要 ${info.cost}）` : state.survival.food < foodCost ? `口粮不足（需要 ${foodCost}）` : `前往 ${name}（口粮 ${foodCost}）`;
     document.querySelectorAll(".map-node").forEach(node => node.classList.toggle("selected", node.dataset.location === name));
   }
 
   function travelTo(name) {
     const info = worldLocations[name];
-    if (!info || !state.unlockedLocations.includes(name) || state.location === name || state.money < info.cost) return;
+    if (!info || !state.unlockedLocations.includes(name) || state.location === name || state.money < info.cost || state.survival.food < travelFoodCost(info.months)) return;
     const from = state.location;
     state.resumeEventId = null;
     state.money -= info.cost;
     state.ageMonths += info.months;
     state.turn += 1;
     state.story.sideSinceMain += 1;
+    applyLivingCost(info.months, 4, "travel"); markTutorial("travel");
     addProgress({ xp: 4, life: 2 });
     state.location = name;
     if (!state.visitedLocations.includes(name)) state.visitedLocations.push(name);
     state.currentEventId = "travel_arrival";
     state.lastChoice = `从${from}前往${name}`;
-    state.lastResult = `你整理行装，从${from}出发。旅途耗时${info.months}个月、花费${info.cost}钱币。抵达${name}后，新的事件与人物已经进入你的命运范围。`;
+    state.lastResult = `你整理行装，从${from}出发。旅途耗时${info.months}个月、花费${info.cost}钱币。\n【地点遭遇】${resolveTravelEncounter(name)}`;
     state.phase = "result";
     state.chapter = chapterForAge();
     state.history.unshift({ age: formatAge(), location: name, title: "地图旅行", choice: state.lastChoice, result: state.lastResult });
@@ -1101,6 +1355,16 @@
   function runFreeAction(action) {
     const text = action.trim();
     if (!text) { $("freeActionHint").textContent = "请先写下想做的事情。"; return; }
+    // Each input resolves one primary intent; recovery cannot be combined with free training.
+    if (/(休息|睡觉|放松|静养)/.test(text)) return dailyAction("rest");
+    if (/(工作|赚钱|经商|售卖|打工)/.test(text)) return dailyAction("work");
+    if (/(采集|找食物|寻找食物|觅食)/.test(text)) return dailyAction("forage");
+    if (/(使用|服用).*(药|绷带)|疗伤药/.test(text)) {
+      if (!state.inventory.medicine) { $("freeActionHint").textContent = "没有药品，可在商店购买药草与绷带。"; return; }
+      preservePendingEvent(); state.inventory.medicine -= 1; state.survival.fatigue = clamp(state.survival.fatigue - 25); state.stats.vitality = clamp(state.stats.vitality + 8); state.survival.morale = clamp(state.survival.morale + 4);
+      state.turn++; state.ageMonths++; state.story.sideSinceMain++; state.currentEventId = "free_action"; state.lastChoice = text; state.lastResult = "你清理伤口、重新包扎并真正休息下来。疲劳降低25，体魄恢复8；药品已消耗。"; state.phase = "result";
+      state.history.unshift({ age: formatAge(), location: state.location, title: "使用物品", choice: text, result: state.lastResult }); state.history = state.history.slice(0,40); state.chapter = chapterForAge(); checkMilestones(); autoSave(); render(); return;
+    }
     const namedDestination = Object.keys(worldLocations).find(name => text.includes(name));
     if (namedDestination && /(去|前往|旅行|出发|赶往|回到)/.test(text)) {
       if (state.unlockedLocations.includes(namedDestination)) {
@@ -1116,13 +1380,29 @@
     const effects = {};
     const outcomes = [];
     let months = 3;
+    let actionSwordStyle = "swordGod";
+    const training = /(练|魔法|魔术|咏唱|挥砍|跑步|体能|格挡|反击|佯攻)/.test(text);
+    if (training && (state.money < 1 || state.survival.food < 1 || state.survival.fatigue >= 85)) { $("freeActionHint").textContent = "训练需要1钱币、1口粮且疲劳低于85；可先工作、采集或休息。"; return; }
+    if (training) { state.money--; markTutorial("train"); }
     const add = (key, value) => { effects[key] = (effects[key] || 0) + value; };
-    if (/(魔术|魔法|咏唱|术式|魔力)/.test(text)) { add("mana", 4); add("wisdom", 1); outcomes.push("反复调整魔力回路后，你对施法的控制更稳定了"); months += 1; }
-    if (/(剑|战斗|锻炼|跑步|体能|挥砍)/.test(text)) { add("sword", 3); add("vitality", 3); outcomes.push("汗水和失误没有被省略，动作却逐渐变得可靠"); months += 1; }
+    if (/(火魔法|火魔术|火球|火焰)/.test(text)) {
+      if (hasTalent("element_fire")) { add("mana", 5); add("wisdom", 2); state.skills.fire_ball = clamp((state.skills.fire_ball || 0) + 8); outcomes.push("你控制火球的温度、落点与熄灭方式，没有把火系练习当成单纯增大威力"); }
+      else { add("wisdom", 3); outcomes.push("你理解了火系术式轮廓，但缺少“火系研究”路线，无法稳定构筑火球"); }
+      months += 1;
+    } else if (/(水魔法|水魔术|水球|水流)/.test(text)) { add("mana", 4); add("wisdom", 1); state.skills.water_ball = clamp((state.skills.water_ball || 0) + 6); outcomes.push("你分别练习水量、速度与形状，水球控制更加准确"); months += 1; }
+    else if (/(治愈|治疗魔术|回复魔法)/.test(text)) { add("mana", 3); add("wisdom", 2); state.skills.healing = clamp((state.skills.healing || 0) + 6); outcomes.push("你先判断伤势再构筑治愈术，避免用魔力掩盖真正的病因"); months += 1; }
+    else if (/(岩炮|土魔法|土魔术)/.test(text)) { add("mana", 3); add("wisdom", 2); if (state.skills.stone_cannon > 0) state.skills.stone_cannon = clamp(state.skills.stone_cannon + 4); outcomes.push("你研究岩石密度与旋转；尚未领悟岩炮弹时这里只积累理论经验"); months += 1; }
+    else if (/(风魔法|风魔术|风压)/.test(text)) { add("mana", 3); add("wisdom", 2); outcomes.push("你用轻微风压移动标记物，逐步理解距离与方向"); months += 1; }
+    else if (/(魔术|魔法|咏唱|术式|魔力)/.test(text)) { add("mana", 3); add("wisdom", 1); outcomes.push("指令没有指定元素，你进行通用魔力控制练习；写明火、水、土或治愈会得到更具体反馈"); months += 1; }
+    if (/(水神流|格挡|反击)/.test(text)) { actionSwordStyle = "waterGod"; add("sword", 3); add("vitality", 2); outcomes.push("你练习守住中线并在接触瞬间偏转攻击，水神流经验增加"); months += 1; }
+    else if (/(北神流|佯攻|应变|假动作)/.test(text)) { actionSwordStyle = "northGod"; add("sword", 3); add("wisdom", 2); outcomes.push("你借障碍和假动作改变距离，北神流经验增加"); months += 1; }
+    else if (/(剑神流|拔剑|先制|挥砍|练剑|剑术)/.test(text)) { add("sword", 3); add("vitality", 3); outcomes.push("你专注起手、距离与先制，剑神流经验增加"); months += 1; }
+    else if (/(战斗|锻炼|跑步|体能)/.test(text)) { add("vitality", 4); outcomes.push("你完成了体能与移动训练，没有把所有锻炼都混成剑术经验"); months += 1; }
     if (/(调查|研究|阅读|学习|图书|打听|记录)/.test(text)) { add("wisdom", 5); outcomes.push("你核对多方信息，没有把第一条传闻当成答案"); }
     if (/(交谈|拜访|帮助|说服|结识|道歉|陪伴)/.test(text)) { add("charm", 4); updateRelation(["当地居民", 3]); outcomes.push("对方记住了你的态度，关系也有了继续发展的可能"); }
-    if (/(工作|赚钱|委托|经商|售卖|制作|打工)/.test(text)) { add("money", 8); add("charm", 1); outcomes.push("你付出时间完成工作，得到一笔不算丰厚但可靠的收入"); months += 1; }
-    if (/(休息|睡觉|治疗|疗伤|放松|静养)/.test(text)) { add("vitality", 6); outcomes.push("你允许身体真正恢复，而不是带着疲惫继续逞强"); months = 2; }
+    if (/(工作|赚钱|委托|经商|售卖|制作|打工)/.test(text)) { add("money", 8 + (hasTalent("caravan_network") ? 3 : 0)); add("charm", 1); addRegionalReputation(1); outcomes.push("你付出时间完成工作，得到可靠收入，也让当地人开始记住你的做事方式"); months += 1; }
+    const resting = /(休息|睡觉|疗伤|放松|静养)/.test(text);
+    if (resting) { add("vitality", 6); state.survival.fatigue = clamp(state.survival.fatigue - 22); state.survival.morale = clamp(state.survival.morale + 6); outcomes.push("你允许身体真正恢复，而不是带着疲惫继续逞强"); months = 2; }
     if (/(探索|寻找|巡逻|冒险|追踪)/.test(text)) { add(pick(["vitality", "wisdom", "charm"]), 4); add("fame", 1); outcomes.push(`你在${state.location}发现了平时容易忽略的道路与消息`); }
     const knownName = ["洛琪希", "希露菲", "艾莉丝", "瑞杰路德", "七星", "菲兹", "扎诺巴", "保罗"].find(name => text.includes(name));
     if (knownName && knownName in state.relations) { updateRelation([knownName, 4]); add("charm", 2); outcomes.push(`你与${knownName}的这次互动被彼此记住`); }
@@ -1135,7 +1415,8 @@
     state.freeActionCount += 1;
     state.turn += 1;
     state.story.sideSinceMain += 1;
-    addProgress({ xp: 5 + Math.max(0, effects.fame || 0), magic: Math.max(0, effects.mana || 0) * 2, sword: Math.max(0, effects.sword || 0) * 2, life: Math.max(0, (effects.wisdom || 0) + (effects.charm || 0)) });
+    applyLivingCost(months, resting ? 0 : training ? 5 : 2, resting ? "rest" : training ? "training" : "normal");
+    addProgress({ xp: 5 + Math.max(0, effects.fame || 0), magic: Math.max(0, effects.mana || 0) * 2, sword: Math.max(0, effects.sword || 0) * 2, style: actionSwordStyle, life: Math.max(0, (effects.wisdom || 0) + (effects.charm || 0)) });
     state.ageMonths += Math.min(months, 7);
     state.currentEventId = "free_action";
     state.lastChoice = text;
@@ -1152,6 +1433,44 @@
 
   function escapeHtml(value) {
     return String(value).replace(/[&<>'"]/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[char]));
+  }
+
+  function dailyAction(action) {
+    if (!state || !["work", "rest", "forage"].includes(action)) return;
+    preservePendingEvent();
+    let title, result;
+    if (action === "work") {
+      const income = 8 + (hasTalent("caravan_network") ? 3 : 0) - (state.survival.fatigue >= 75 ? 3 : 0);
+      state.money += income;
+      state.survival.food = Math.min(30, state.survival.food + 1);
+      applyLivingCost(1, 7);
+      addProgress({xp:4,life:2}); addRegionalReputation(1);
+      title = "完成包饭工作"; result = `你完成适合自己年龄的帮工，得到${income}钱币与当期伙食。工作疲劳+7；没有预付费用，身无分文也可接取。`;
+    } else if (action === "forage") {
+      const food = hasTalent("field_lore") ? 4 : 3;
+      state.survival.food = Math.min(30, state.survival.food + food);
+      applyLivingCost(1, 5); addProgress({xp:3,life:3});
+      title = "采集与换取食物"; result = `你在附近采集可确认安全的食材，或在城镇用杂务换取食物。获得${food}份口粮，本期吃掉1份（背包上限30），疲劳+5。`;
+    } else {
+      state.survival.fatigue = clamp(state.survival.fatigue - 25); state.survival.morale = clamp(state.survival.morale + 8); state.stats.vitality = clamp(state.stats.vitality + 5);
+      title = "留出休整时间"; result = "你停下高强度活动，利用基础食宿休整。疲劳-25、士气+8、体魄+5；休整不另收钱币或旅行口粮，也不获得经验。";
+    }
+    state.turn++; state.ageMonths++; state.story.sideSinceMain++; state.freeActionCount++;
+    state.currentEventId = "free_action"; state.lastChoice = title; state.lastResult = result; state.phase = "result"; state.chapter = chapterForAge();
+    state.history.unshift({age:formatAge(), location:state.location, title:"生计与休整", choice:title, result}); state.history = state.history.slice(0,40);
+    checkMilestones(); autoSave(); render();
+  }
+
+  function navigateGame(target) {
+    if (!state) return;
+    if (target === "skills") return openSkills();
+    if (target === "map") return openMap();
+    if (target === "save") { renderSlots(); $("saveModal").showModal(); return; }
+    if (target === "character") {
+      document.querySelector(".character-panel").classList.remove("mobile-collapsed");
+      $("mobilePanelToggle").setAttribute("aria-expanded", "true"); $("mobilePanelToggle").textContent = "收起角色详情 ⌃";
+      document.querySelector(".character-panel").scrollIntoView({block:"start"});
+    } else $(target === "choices" ? "choiceList" : "storyCard").scrollIntoView({block:"start"});
   }
 
   function safeParse(raw) {
@@ -1180,7 +1499,16 @@
     saved.progression.swordStyles = saved.progression.swordStyles || { swordGod: (saved.stats.sword || 8) * 2, waterGod: 0, northGod: 0 };
     saved.skills = saved.skills || { water_ball: 15, healing: 5, arm_drop: 10, human_language: 25 };
     saved.story = saved.story || { sideSinceMain: 0, mainCompleted: saved.seen.filter(id => mainEventIds.has(id)).length };
-    saved.version = 3;
+    const defaults = blankState(saved.profile);
+    saved.survival = { ...defaults.survival, ...saved.survival };
+    saved.equipment = { ...defaults.equipment, ...saved.equipment, bonuses: { ...defaults.equipment.bonuses, ...(saved.equipment || {}).bonuses } };
+    saved.inventory = { ...defaults.inventory, ...saved.inventory };
+    saved.inventory.ownedEquipment = [...new Set([...(Array.isArray(saved.inventory.ownedEquipment) ? saved.inventory.ownedEquipment : []), ...equipmentCatalog.filter(item => ["weapon", "focus", "armor"].includes(item.type) && saved.equipment[item.type] === item.name).map(item => item.id)])];
+    saved.talents = Array.isArray(saved.talents) ? [...new Set(saved.talents)].filter(id => talentNodes.some(node => node.id === id)) : [];
+    saved.regionalReputation = { ...defaults.regionalReputation, ...saved.regionalReputation };
+    saved.tutorial = { actions: Array.isArray(saved.tutorial?.actions) ? saved.tutorial.actions : [] };
+    saved.encounterCount = saved.encounterCount || 0;
+    saved.version = 4;
     return saved;
   }
 
@@ -1215,6 +1543,7 @@
   }
 
   function saveSlot(index) {
+    markTutorial("save"); checkMilestones(); autoSave(); renderTutorial();
     const items = slots();
     items[index] = deepCopy(state);
     items[index].updatedAt = new Date().toISOString();
@@ -1295,6 +1624,14 @@
   }
 
   $("startForm").addEventListener("submit", startFromForm);
+  $("shopButton").addEventListener("click", openShop);
+  $("mobilePanelToggle").addEventListener("click", () => {
+    const collapsed = document.querySelector(".character-panel").classList.toggle("mobile-collapsed");
+    $("mobilePanelToggle").setAttribute("aria-expanded", String(!collapsed));
+    $("mobilePanelToggle").textContent = collapsed ? "展开角色详情 ⌄" : "收起角色详情 ⌃";
+  });
+  document.querySelectorAll("[data-mobile-target]").forEach(button => button.addEventListener("click", () => navigateGame(button.dataset.mobileTarget)));
+  document.querySelectorAll("[data-daily]").forEach(button => button.addEventListener("click", () => dailyAction(button.dataset.daily)));
   $("randomizeButton").addEventListener("click", randomizeForm);
   $("continueButton").addEventListener("click", () => loadState(safeParse(localStorage.getItem(STORAGE_KEY))));
   $("saveButton").addEventListener("click", () => { renderSlots(); $("saveModal").showModal(); });
