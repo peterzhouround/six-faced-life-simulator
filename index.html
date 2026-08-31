@@ -52,6 +52,14 @@
           <div><span>回合</span><strong id="turnValue">0</strong></div>
         </div>
 
+        <section class="progression-card" aria-labelledby="growthTitle">
+          <div class="section-title"><h2 id="growthTitle">成长等级</h2><span id="playerLevel">Lv.1</span></div>
+          <div class="rank-line"><span>冒险者</span><strong id="adventureRank">F级</strong></div>
+          <div class="xp-meter"><i id="xpBar"></i></div>
+          <div class="discipline-ranks"><span>魔术 <b id="magicRank">初级</b></span><span>剑术 <b id="swordRank">初级</b></span></div>
+          <button class="skill-book-button" id="openSkillsButton" type="button">查看技能与招式 <span>›</span></button>
+        </section>
+
         <section class="mini-section" aria-labelledby="relationsTitle">
           <div class="section-title"><h2 id="relationsTitle">人物羁绊</h2><span id="relationCount">0</span></div>
           <div class="relations" id="relationsList"><p class="empty-note">命运尚未让你与谁相遇。</p></div>
@@ -108,6 +116,14 @@
           <div class="section-title"><div><p class="eyebrow">DESTINY</p><h2 id="destinyTitle">命运轨迹</h2></div></div>
           <div class="destiny-score"><span id="destinyScore">0</span><small>人生回响</small></div>
           <ul id="achievementList"><li class="locked">尚未获得人生印记</li></ul>
+        </section>
+
+        <section class="panel main-quest-panel" aria-labelledby="mainQuestTitle">
+          <div class="section-title"><div><p class="eyebrow" lang="en">MAIN STORY</p><h2 id="mainQuestTitle">主线篇章</h2></div><span id="mainChapterIndex">01</span></div>
+          <h3 id="mainQuestName">第二人生的起点</h3>
+          <p id="mainQuestText">先生活、学习并认识身边的人，命运不会立刻催促你前进。</p>
+          <div class="quest-progress"><i id="mainQuestBar"></i></div>
+          <small id="mainQuestRequirement">完成日常与人物事件 0/6</small>
         </section>
 
         <section class="panel guide-card">
@@ -186,6 +202,38 @@
         <button class="primary-button" id="travelButton" type="button" disabled>选择地点</button>
       </aside>
     </div>
+  </dialog>
+
+  <dialog class="modal skills-modal" id="skillsModal">
+    <div class="modal-heading"><div><p class="eyebrow" lang="en">SKILLS & DISCIPLINES</p><h2>技能与招式</h2></div><button class="icon-button" data-close="skillsModal" aria-label="关闭">×</button></div>
+    <div class="skill-overview" id="skillOverview"></div>
+    <details class="modal-note"><summary>等级门槛与三流派经验</summary><p id="rankGuide"></p></details>
+    <p class="modal-note">修炼消耗一个月；暂停中的剧情会保留。远方人物互动以书信与训练笔记呈现。招式阶位为本作平衡设定。</p>
+    <button class="primary-button" type="button" id="practiceButton">进入技能对练</button>
+    <div class="skill-tabs" role="tablist">
+      <button class="active" type="button" data-skill-tab="magic">魔术</button>
+      <button type="button" data-skill-tab="sword">剑术</button>
+      <button type="button" data-skill-tab="life">生活技能</button>
+    </div>
+    <div class="skill-list" id="skillList"></div>
+  </dialog>
+
+  <dialog class="modal interaction-modal" id="interactionModal">
+    <div class="modal-heading"><div><p class="eyebrow" lang="en">BONDS</p><h2 id="interactionTitle">人物互动</h2></div><button class="icon-button" data-close="interactionModal" aria-label="关闭">×</button></div>
+    <div class="interaction-body">
+      <div class="interaction-character"><span id="interactionAvatar">人</span><div><strong id="interactionName">人物</strong><small id="interactionRelation">初识</small></div></div>
+      <p id="interactionDescription">与角色相处会推进时间，并可能解锁专属事件、训练和招式。</p>
+      <div class="interaction-actions" id="interactionActions"></div>
+    </div>
+  </dialog>
+
+  <dialog class="modal skills-modal" id="combatModal">
+    <div class="modal-heading"><div><p class="eyebrow" lang="en">TRAINING GROUND</p><h2>技能对练</h2></div><button class="icon-button" data-close="combatModal" aria-label="关闭">×</button></div>
+    <p class="modal-note">安全模拟战，不会死亡。招式有资源消耗与不同效果；观察对手预兆，选择进攻、打断、格挡或恢复。关闭可暂停，下次进入继续；每回合自动存档。</p>
+    <p id="combatStatus" role="status" aria-live="polite"></p>
+    <p id="combatIntent"></p>
+    <div class="interaction-actions" id="combatActions"></div>
+    <ol id="combatLog" class="combat-log" aria-live="polite"></ol>
   </dialog>
 
   <dialog class="modal help-modal" id="helpModal">
