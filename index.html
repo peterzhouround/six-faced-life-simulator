@@ -4,10 +4,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#101a24">
+  <meta name="referrer" content="no-referrer">
   <meta name="description" content="原创六面世界题材的浏览器人生模拟文字冒险：自由开局、成长选择、自动存档与多存档位。">
   <title>六面世界：第二人生</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='8' fill='%23101a24'/%3E%3Cpath d='M32 9 53 21v22L32 55 11 43V21z' fill='none' stroke='%23e4c486' stroke-width='3'/%3E%3Ctext x='32' y='41' text-anchor='middle' font-size='28' fill='%23e4c486'%3E六%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=5.0.2">
 </head>
 <body>
   <a class="skip-link" href="#storyCard">跳到剧情</a>
@@ -49,7 +50,7 @@
 
         <div class="resource-grid">
           <div><span>钱币</span><strong id="moneyValue">0</strong></div>
-          <div><span>口粮</span><strong id="foodValue">0</strong></div>
+          <div><span>药品</span><strong id="medicineValue">0</strong></div>
           <div><span>疲劳</span><strong id="fatigueValue">0</strong></div>
           <div><span>士气</span><strong id="moraleValue">0</strong></div>
           <div><span>声望</span><strong id="fameValue">0</strong></div>
@@ -59,7 +60,7 @@
         <section class="equipment-card" aria-labelledby="equipmentTitle">
           <div class="section-title"><h2 id="equipmentTitle">行装与生计</h2><button class="text-button" id="shopButton" type="button">商店</button></div>
           <p id="equipmentSummary">木剑 · 学徒法杖 · 旅行斗篷</p>
-          <small id="survivalWarning">口粮充足，能够安心行动。</small>
+          <small id="survivalWarning">无需口粮，能够安心行动。</small>
         </section>
 
         <section class="progression-card" aria-labelledby="growthTitle">
@@ -86,10 +87,10 @@
         </div>
 
         <section class="daily-actions" aria-label="生计快捷行动">
-          <span>生计与休整 · 每次一个月</span>
-          <button type="button" data-daily="work">包饭工作</button>
-          <button type="button" data-daily="forage">采集口粮</button>
-          <button type="button" data-daily="rest">免费休息</button>
+          <span>工作/采集：1个月 · 免费休息：1天，疲劳-60</span>
+          <button type="button" data-daily="work">日常工作</button>
+          <button type="button" data-daily="forage">药草采集</button>
+          <button type="button" data-daily="rest" title="只经过1天，免费恢复最多60点疲劳">休息1天</button>
         </section>
         <article class="story-card" id="storyCard" aria-live="polite" tabindex="-1">
           <div class="story-icon" id="storyIcon" aria-hidden="true">✦</div>
@@ -151,12 +152,14 @@
         <section class="panel tutorial-panel" aria-labelledby="tutorialTitle">
           <div class="section-title"><div><p class="eyebrow">FIRST STEPS</p><h2 id="tutorialTitle">新手旅程</h2></div><span id="tutorialProgress">0/5</span></div>
           <ol id="tutorialList"></ol>
+          <p class="modal-note" id="tutorialBonus"></p>
+          <button class="skill-book-button" type="button" id="questsButton">可选支线任务 ›</button>
         </section>
       </aside>
     </main>
 
     <footer>
-      <p>非官方同人性质的原创规则实验 · 不使用官方美术素材 · 数据仅保存在你的浏览器</p>
+      <p>非官方同人性质的原创规则实验 · v5 新手奖励与支线 · 默认本机保存，云端需主动登录上传</p>
     </footer>
   </div>
 
@@ -204,6 +207,8 @@
         <div class="start-actions">
           <button class="primary-button" value="start" id="beginButton">开启第二人生 <span>→</span></button>
           <button class="quiet-button hidden" type="button" id="continueButton">继续上次人生</button>
+          <button class="quiet-button" type="button" data-open-account>登录 / 云存档</button>
+          <button class="quiet-button" type="button" data-import-save>导入存档文件</button>
         </div>
       </div>
     </form>
@@ -213,6 +218,42 @@
     <div class="modal-heading"><div><p class="eyebrow">ARCHIVE</p><h2>命运书库</h2></div><button class="icon-button" data-close="saveModal" aria-label="关闭">×</button></div>
     <p class="modal-note">自动存档会在每次选择后更新；三个手动存档位可保留不同人生节点。</p>
     <div class="save-slots" id="saveSlots"></div>
+    <section class="backup-section"><h3>备份与跨设备</h3>
+      <p class="modal-note">本机存档不需要登录。换浏览器、清除网站数据或无痕模式可能丢档，请定期导出 JSON；传记 TXT 不能恢复游戏。</p>
+      <div class="dialog-actions"><button type="button" id="exportSaveButton">导出存档 JSON</button><button type="button" data-import-save>导入存档文件</button><button type="button" id="recoverSaveButton">恢复导入前备份</button><button type="button" data-open-account>登录 / 云存档</button></div>
+    </section>
+  </dialog>
+
+  <input type="file" id="importSaveInput" accept=".json,application/json" hidden>
+  <dialog class="modal save-modal" id="importModal">
+    <div class="modal-heading"><h2>确认读取存档</h2><button class="icon-button" data-close="importModal" aria-label="关闭">×</button></div>
+    <p id="importSummary"></p><p class="modal-note">会替换当前自动存档，三个手动存档位不变。当前人生会保留为一份“导入前备份”，再次导入会更新此备份。</p>
+    <div class="dialog-actions"><button type="button" data-close="importModal">取消</button><button type="button" class="primary-button" id="confirmImport">确认读取</button></div>
+  </dialog>
+
+  <dialog class="modal save-modal" id="accountModal">
+    <div class="modal-heading"><h2>登录与云存档</h2><button class="icon-button" data-close="accountModal" aria-label="关闭">×</button></div>
+    <p class="modal-note">本地游玩完全免登录。账号由 Supabase 托管，每个账号一份云存档。登录不会覆盖本机；只有点击上传才会发送当前游戏数据。刷新页面后需重新登录。</p>
+    <p id="accountStatus" role="status" aria-live="polite"></p>
+    <form id="accountForm" class="account-form">
+      <label>邮箱<input id="accountEmail" type="email" autocomplete="username" required maxlength="254"></label>
+      <label>密码<input id="accountPassword" type="password" autocomplete="current-password" required minlength="8" maxlength="128"></label>
+      <div class="dialog-actions"><button id="loginButton" type="submit">登录</button><button id="signupButton" type="button">注册账号</button><button id="logoutButton" type="button">退出登录</button></div>
+    </form>
+    <p class="modal-note">注册可能需要邮件验证，请查收邮件后回来登录。不存储密码，也不把登录凭证写入游戏备份。未配置服务时请使用 JSON 文件换设备。</p>
+    <div class="dialog-actions"><button type="button" id="uploadCloudButton">上传当前人生</button><button type="button" id="downloadCloudButton">读取云端人生</button></div>
+    <p class="modal-note"><a href="CLOUD-SETUP.md" target="_blank" rel="noopener">站长：查看云服务配置指南</a></p>
+  </dialog>
+
+  <dialog class="modal save-modal" id="uploadModal">
+    <div class="modal-heading"><h2>确认上传云端</h2><button class="icon-button" data-close="uploadModal" aria-label="关闭">×</button></div>
+    <p id="uploadSummary"></p><p class="modal-note">此操作替换账号的云存档，不影响本地手动存档。如果另一设备已更新，会拒绝覆盖并提醒重新检查。</p>
+    <div class="dialog-actions"><button type="button" data-close="uploadModal">取消</button><button type="button" id="confirmUpload">确认上传</button></div>
+  </dialog>
+
+  <dialog class="modal save-modal" id="sideQuestModal">
+    <div class="modal-heading"><h2>可选支线任务</h2><button class="icon-button" data-close="sideQuestModal" aria-label="关闭">×</button></div>
+    <p class="modal-note" id="sideQuestStatus"></p><div id="sideQuestList"></div>
   </dialog>
 
   <dialog class="modal full-map-modal" id="mapModal">
@@ -238,7 +279,7 @@
     <div class="modal-heading"><div><p class="eyebrow" lang="en">SKILLS & DISCIPLINES</p><h2>技能与招式</h2></div><button class="icon-button" data-close="skillsModal" aria-label="关闭">×</button></div>
     <div class="skill-overview" id="skillOverview"></div>
     <details class="modal-note"><summary>等级门槛与三流派经验</summary><p id="rankGuide"></p></details>
-    <p class="modal-note">修炼消耗一个月、1钱币和1口粮，疲劳+5；疲劳达到85须先休息。对练开始时消耗1口粮、疲劳+5，退出不退还。角色路线是本作平衡设定。</p>
+    <p class="modal-note">修炼消耗一个月、1钱币，疲劳+5；疲劳达到85须先休息。免费休息1天恢复60疲劳，不再跳过一个月。对练开始时疲劳+5，不扣钱币。口粮系统已取消。</p>
     <button class="primary-button" type="button" id="practiceButton">进入技能对练</button>
     <section class="talent-section" aria-labelledby="talentTitle">
       <div class="section-title"><h3 id="talentTitle">成长路线</h3><span id="talentPoints">0 可用点数</span></div>
@@ -295,6 +336,8 @@
   </dialog>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <script src="game.js"></script>
+  <script src="cloud-config.js?v=5.0.2"></script>
+  <script src="cloud.js?v=5.0.2"></script>
+  <script src="game.js?v=5.0.2"></script>
 </body>
 </html>

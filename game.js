@@ -3,6 +3,7 @@
 
   const STORAGE_KEY = "six-faced-life.autosave.v1";
   const SLOT_KEY = "six-faced-life.slots.v1";
+  const REST_FATIGUE_RECOVERY = 60;
   const $ = (id) => document.getElementById(id);
   const clamp = (value, min = 0, max = 100) => Math.max(min, Math.min(max, value));
   const pick = (items) => items[Math.floor(Math.random() * items.length)];
@@ -121,12 +122,12 @@
   const mainSideRequirements = { transfer_calamity: 8, dead_end_crossing: 5, paul_reunion: 5, orsted_crossing: 6, fittoa_homecoming: 5, academy_reunion: 8, begaritt_request: 8, teleport_labyrinth_entry: 6 };
   const regionLabels = ["阿斯拉", "北方诸国", "米里斯", "魔大陆", "贝卡利特"];
   const equipmentCatalog = [
-    { id: "rations", name: "三份旅行口粮", type: "supply", cost: 5, food: 3, description: "补充3份口粮。低于2份时，长途行动会迅速累积疲劳。" },
+    { id: "novice_sword", name: "旅人练习剑", type: "weapon", cost: 0, bonus: 2, rewardOnly: true, description: "新手任务奖励。装备时剑技伤害+2；已购装备不会消失，可随时换回。" },
     { id: "medicine", name: "药草与绷带", type: "supply", cost: 7, item: "medicine", description: "获得1份药品；可在自由行动中输入“使用药品”。" },
     { id: "iron_sword", name: "平衡铁剑", type: "weapon", cost: 18, bonus: 3, description: "剑术训练收益+1，对练剑技伤害+3。" },
     { id: "mage_staff", name: "青辉法杖", type: "focus", cost: 20, bonus: 3, description: "魔术训练收益+1，对练魔术伤害+3。" },
     { id: "leather_armor", name: "轻皮甲", type: "armor", cost: 24, bonus: 3, description: "旅行遭遇受到的体魄损失减少3。" },
-    { id: "travel_cloak", name: "防雨旅行斗篷", type: "armor", cost: 14, bonus: 1, description: "旅行消耗的口粮减少1份，最低仍消耗1份。" }
+    { id: "travel_cloak", name: "防雨旅行斗篷", type: "armor", cost: 14, bonus: 1, description: "旅行基础疲劳减少2；旧装备保留并自动使用新效果。" }
     ,{ id: "repair", name: "保养全套行装", type: "service", cost: 4, description: "装备耐久恢复至100。耐久为0时装备加成失效。" }
   ];
   const talentNodes = [
@@ -139,7 +140,7 @@
     { id: "north_god_path", branch: "剑术", name: "北神流·奇策", description: "解锁应变步修炼；北神流招式伤害+3。", requires: ["sword_foundation"] },
     { id: "battle_reading", branch: "剑术", name: "战场识读", description: "对练格挡伤害由25%降至15%。", requires: ["sword_foundation"] },
     { id: "finishing_strike", branch: "剑术", name: "决胜一击", description: "对练剑技伤害+5。", requires: ["battle_reading"] },
-    { id: "field_lore", branch: "生存", name: "野外知识", description: "每次旅行少消耗1份口粮。", requires: [] },
+    { id: "field_lore", branch: "生存", name: "野外知识", description: "旅行基础疲劳减少2，药草采集收入+2。", requires: [] },
     { id: "caravan_network", branch: "生存", name: "商路人脉", description: "工作收入+3，商店价格降低10%。", requires: ["field_lore"] },
     { id: "trusted_face", branch: "生存", name: "可信之人", description: "人物互动额外获得1点羁绊，地区声望获取+1。", requires: ["caravan_network"] }
   ];
@@ -161,11 +162,19 @@
     "冒险者公会": ["一张报酬异常高的委托缺少关键细节，你选择先追问。", "新人队伍争执分工，你用自己的经历提出折中方案。"]
   };
   const tutorialGoals = [
-    { id: "choice", label: "完成第一个剧情选择", done: s => s.tutorial.actions.includes("choice") || s.seen.length > 0 },
-    { id: "train", label: "修炼或领悟一次技能", done: s => s.tutorial.actions.includes("train") },
-    { id: "bond", label: "与已相遇的人物互动", done: s => s.tutorial.actions.includes("bond") },
-    { id: "travel", label: "打开地图并完成一次旅行", done: s => s.tutorial.actions.includes("travel") },
-    { id: "save", label: "建立一个手动存档", done: s => s.tutorial.actions.includes("save") }
+    { id: "choice", label: "完成第一个剧情选择", done: s => s.tutorial.actions.includes("choice") || s.seen.length > 0, reward: {xp:12,money:8} },
+    { id: "train", label: "修炼或领悟一次技能", done: s => s.tutorial.actions.includes("train"), reward: {xp:18,equipment:"novice_sword"} },
+    { id: "bond", label: "与已相遇的人物互动", done: s => s.tutorial.actions.includes("bond"), reward: {xp:18,medicine:2} },
+    { id: "travel", label: "打开地图并完成一次旅行", done: s => s.tutorial.actions.includes("travel"), reward: {xp:25,money:12} },
+    { id: "save", label: "建立一个手动存档", done: s => s.tutorial.actions.includes("save"), reward: {xp:15,medicine:1} }
+  ];
+  const sideQuests = [
+    {id:"herb_garden",name:"药师的小药圃",text:"药师想补齐安全草药。接取后完成2次药草采集，不需要远行。",counter:"forage",need:2,reward:{xp:20,medicine:2,money:6}},
+    {id:"steady_practice",name:"不是天才也能前进",text:"教员希望看到持续练习的记录。接取后修炼3次技能或完成对练。",counter:"train",need:3,reward:{xp:30,money:12}},
+    {id:"guild_helper",name:"公会的临时帮手",text:"委托不只有讨伐。接取后做2次日常工作，替公会解决杂务。",counter:"work",need:2,reward:{xp:20,money:15}},
+    {id:"road_notes",name:"商路见闻录",text:"商队需要新路况。接取后在地图完成2次旅行，记录沿途遭遇。",counter:"travel",need:2,reward:{xp:30,equipment:"travel_cloak"}},
+    {id:"listen_first",name:"听完别人的故事",text:"接取后与已认识的人完成2次互动。熟人也值得被重新认识。",counter:"bond",need:2,reward:{xp:25,medicine:2}},
+    {id:"practice_victory",name:"训练场的毕业考",text:"接取后赢得1场技能对练。失败可重试，也可以先提升技能。",counter:"victory",need:1,reward:{xp:40,equipment:"iron_sword"}}
   ];
 
   const events = [
@@ -175,7 +184,7 @@
       when: s => s.profile.timeline === "transfer" && !s.seen.includes("transfer_calamity") && ["布艾纳村", "罗亚城"].includes(s.location) && s.turn >= 2,
       priority: 11,
       choices: [
-        {label:"准备一份家庭应急包",hint:"口粮 +3 · 钱币 -2",months:1,effects:{money:-2,wisdom:2},food:3,requires:s=>s.money>=2,lockText:"需要2钱币",result:"你把干粮、姓名记录和绷带放在固定位置。准备不能阻止异变，但至少让家人知道慌乱时先拿什么。"},
+        {label:"准备一份家庭应急包",hint:"药品 +1 · 钱币 -2",months:1,effects:{money:-2,wisdom:2},medicine:1,requires:s=>s.money>=2,lockText:"需要2钱币",result:"你把姓名记录和绷带放在固定位置。准备不能阻止异变，但至少让家人知道慌乱时先拿什么。"},
         {label:"记录魔力团的变化",hint:"学识 +4 · 魔力 +2",months:1,effects:{wisdom:4,mana:2},result:"你把观测日期与光点位置写进笔记，没有用无法验证的猜测吓唬邻里。"},
         {label:"约好失散后的联络方式",hint:"家人 +5 · 魅力 +2",months:1,effects:{charm:2},relation:["家人",5],result:"你们写下姓名、熟人的住处和公会位置；家人终于不再只围着天空争论。"}
       ]
@@ -525,17 +534,17 @@
       else initial[key] = (initial[key] || 0) + value;
     }));
     return {
-      version: 4, profile, ageMonths: startAge[profile.timeline] || 144, location: profile.location,
+      version: 5, profile, ageMonths: startAge[profile.timeline] || 144, ageDays: 0, location: profile.location,
       chapter: startChapter[profile.timeline] || "自由人生", stats: initial, money: resourceBoost.money, fame: resourceBoost.fame,
-      turn: 0, relations: {}, history: [], seen: [], achievements: [], currentEventId: "opening", phase: "event",
+      turn: 0, relations: {}, bondMemories: [], history: [], seen: [], achievements: [], currentEventId: "opening", phase: "event",
       unlockedLocations: [profile.location], visitedLocations: [profile.location], freeActionCount: 0,
       progression: { xp: 0, magicXp: initial.mana * 2, swordStyles: { swordGod: initial.sword * 2, waterGod: 0, northGod: 0 }, lifeXp: 0 },
       skills: { water_ball: 15, healing: 5, arm_drop: 10, human_language: 25 },
       story: { sideSinceMain: 0, mainCompleted: 0 },
-      survival: { food: 8, fatigue: 0, morale: 70 },
+      survival: { fatigue: 0, morale: 70 },
       equipment: { weapon: "练习木剑", focus: "学徒法杖", armor: "旅行斗篷", durability: 100, bonuses: { weapon: 0, focus: 0, armor: 0 } },
       inventory: { medicine: 0, ownedEquipment: [] }, talents: [], regionalReputation: Object.fromEntries(regionLabels.map(name => [name, 0])),
-      tutorial: { actions: [] }, encounterCount: 0,
+      tutorial: { actions: [], claimed: [] }, quests: { counters: {train:0,work:0,forage:0,travel:0,bond:0,victory:0}, records: {} }, encounterCount: 0,
       lastResult: "", lastChoice: "", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
     };
   }
@@ -604,6 +613,7 @@
 
   function markTutorial(action) {
     if (!state.tutorial.actions.includes(action)) state.tutorial.actions.push(action);
+    if (action in state.quests.counters) state.quests.counters[action]++;
   }
 
   function talentPoints() {
@@ -620,24 +630,9 @@
   }
 
   function applyLivingCost(months = 1, intensity = 1, mode = "normal") {
-    let needed = mode === "travel" ? travelFoodCost(months) : Math.max(1, Math.ceil(months / 3));
-    if (mode === "rest") needed = Math.max(0, needed - 1);
-    const consumed = Math.min(state.survival.food, needed);
-    const shortage = needed - consumed;
-    state.survival.food -= consumed;
-    state.survival.fatigue = clamp(state.survival.fatigue + intensity + shortage * 10);
-    state.survival.morale = clamp(state.survival.morale - shortage * 8 - (state.survival.fatigue >= 80 ? 2 : 0));
+    if (mode === "travel") intensity = Math.max(0, intensity - (hasTalent("field_lore") ? 2 : 0) - (state.equipment.durability > 0 && state.equipment.armor === "防雨旅行斗篷" ? 2 : 0));
+    state.survival.fatigue = clamp(state.survival.fatigue + intensity);
     if (mode === "travel" || mode === "training") state.equipment.durability = clamp(state.equipment.durability - (mode === "travel" ? 5 : 3));
-    if (shortage) state.stats.vitality = clamp(state.stats.vitality - shortage * 2);
-    return { needed, shortage };
-  }
-
-  function travelFoodCost(months) {
-    let needed = Math.max(1, Math.ceil(months / 3));
-    if (hasTalent("field_lore")) needed--;
-    if (state.equipment.durability > 0 && state.equipment.armor === "防雨旅行斗篷") needed--;
-    needed = Math.max(1, needed);
-    return needed;
   }
 
   function resolveTravelEncounter(name) {
@@ -652,7 +647,6 @@
       state.survival.fatigue = clamp(state.survival.fatigue + 5);
       addRegionalReputation(2);
       consequence = loss ? `你承受${loss}点体魄损失；装备抵消了${danger - loss}点风险。` : "你花时间处理了这件事，没有受伤。";
-      if (name === "布艾纳村") state.survival.food = Math.min(30, state.survival.food + 1);
     } else {
       state.money += 2; state.stats.wisdom = clamp(state.stats.wisdom + 1); addRegionalReputation(1);
       consequence = "你获得2钱币与1点学识。";
@@ -676,8 +670,65 @@
   function renderTutorial() {
     const done = tutorialGoals.filter(goal => goal.done(state)).length;
     $("tutorialProgress").textContent = `${done}/${tutorialGoals.length}`;
-    $("tutorialList").innerHTML = tutorialGoals.map((goal, index) => `<li class="${goal.done(state) ? "done" : ""}"><span>${goal.done(state) ? "✓" : index + 1}</span><button type="button" data-guide="${goal.id}">${escapeHtml(goal.label)}</button></li>`).join("");
+    $("tutorialList").innerHTML = tutorialGoals.map((goal, index) => `<li class="${goal.done(state) ? "done" : ""}"><span>${goal.done(state) ? "✓" : index + 1}</span><div><button type="button" data-guide="${goal.id}">${escapeHtml(goal.label)}</button><small>${rewardText(goal.reward)}</small></div><button class="claim-button" data-tutorial-claim="${goal.id}" ${!goal.done(state) || state.tutorial.claimed.includes(goal.id) ? "disabled" : ""}>${state.tutorial.claimed.includes(goal.id) ? "已领取" : "领奖"}</button></li>`).join("");
     $("tutorialList").querySelectorAll("[data-guide]").forEach(button => button.addEventListener("click", () => navigateGame(({choice:"story",train:"skills",bond:"character",travel:"map",save:"save"})[button.dataset.guide])));
+    $("tutorialList").querySelectorAll("[data-tutorial-claim]").forEach(button => button.addEventListener("click", () => claimTutorial(button.dataset.tutorialClaim)));
+    $("tutorialBonus").textContent = state.tutorial.claimed.includes("graduation") ? "毕业礼已领取：40经验 + 青辉法杖" : "领完五项目标奖励，自动获得毕业礼：40经验 + 青辉法杖。";
+  }
+
+  function rewardText(reward) {
+    return [reward.xp ? `${reward.xp}经验` : "", reward.money ? `${reward.money}钱币` : "", reward.medicine ? `药品×${reward.medicine}` : "", reward.equipment ? equipmentCatalog.find(item => item.id === reward.equipment).name : ""].filter(Boolean).join(" · ");
+  }
+
+  function grantReward(reward) {
+    addProgress({xp:reward.xp || 0}); state.money += reward.money || 0; state.inventory.medicine += reward.medicine || 0;
+    if (reward.equipment) {
+      const item = equipmentCatalog.find(entry => entry.id === reward.equipment);
+      if (!state.inventory.ownedEquipment.includes(item.id)) state.inventory.ownedEquipment.push(item.id);
+      if ((state.equipment.bonuses[item.type] || 0) < item.bonus) { state.equipment[item.type] = item.name; state.equipment.bonuses[item.type] = item.bonus; }
+    }
+  }
+
+  function logReward(title, reward) {
+    state.history.unshift({age:formatAge(),location:state.location,title,choice:"领取奖励",result:rewardText(reward)});
+    state.history = state.history.slice(0,40);
+  }
+
+  function claimTutorial(id) {
+    const goal = tutorialGoals.find(item => item.id === id);
+    if (!goal || !goal.done(state) || state.tutorial.claimed.includes(id)) return false;
+    state.tutorial.claimed.push(id); grantReward(goal.reward); logReward(goal.label,goal.reward);
+    if (tutorialGoals.every(item => state.tutorial.claimed.includes(item.id)) && !state.tutorial.claimed.includes("graduation")) {
+      state.tutorial.claimed.push("graduation"); const gift = {xp:40,equipment:"mage_staff"}; grantReward(gift); logReward("新手毕业礼",gift);
+    }
+    checkMilestones(); autoSave(); render(); showToast(`已领取：${rewardText(goal.reward)}`); return true;
+  }
+
+  function sideQuestsUnlocked() { return state.tutorial.claimed.includes("choice"); }
+
+  function questProgress(quest) {
+    const record = state.quests.records[quest.id];
+    return record ? Math.min(quest.need, Math.max(0,state.quests.counters[quest.counter]-record.start)) : 0;
+  }
+
+  function renderSideQuests() {
+    const unlocked = sideQuestsUnlocked();
+    $("sideQuestStatus").textContent = unlocked ? "自由接取，接取后的行动才计数。无需完成支线也能继续主线。" : "先完成并领取第一个新手目标奖励，开启可选支线。";
+    $("sideQuestList").innerHTML = sideQuests.map(quest => {
+      const record = state.quests.records[quest.id]; const done = record?.claimed; const ready = record && questProgress(quest) >= quest.need;
+      return `<article class="side-quest"><h3>${quest.name}</h3><p>${quest.text}</p><small>奖励：${rewardText(quest.reward)}</small><p>${record ? `进度 ${questProgress(quest)}/${quest.need}` : "尚未接取"}</p><div><button data-quest="${quest.id}" data-quest-action="${record ? "claim" : "accept"}" ${!unlocked || done || (record && !ready) ? "disabled" : ""}>${done ? "已领取" : !record ? "接取任务" : ready ? "领取奖励" : "进行中"}</button>${record && !done ? `<button data-quest="${quest.id}" data-quest-action="abandon">暂时放下</button>` : ""}</div></article>`;
+    }).join("");
+    $("sideQuestList").querySelectorAll("[data-quest]").forEach(button => button.addEventListener("click", () => questAction(button.dataset.quest,button.dataset.questAction)));
+  }
+
+  function questAction(id, action) {
+    const quest = sideQuests.find(item => item.id === id); const record = state.quests.records[id];
+    if (!quest || !sideQuestsUnlocked() || record?.claimed) return false;
+    if (action === "accept" && !record) state.quests.records[id] = {start:state.quests.counters[quest.counter],claimed:false};
+    else if (action === "abandon" && record) delete state.quests.records[id];
+    else if (action === "claim" && record && questProgress(quest)>=quest.need) { record.claimed = true; grantReward(quest.reward); logReward(quest.name,quest.reward); showToast(`支线奖励：${rewardText(quest.reward)}`); }
+    else return false;
+    checkMilestones(); autoSave(); render(); renderSideQuests(); return true;
   }
 
   function renderTalents() {
@@ -710,7 +761,7 @@
     const region = currentRegion();
     $("shopContext").textContent = `${state.location} · ${region}声望 ${state.regionalReputation[region] || 0}。声望30可再减价10%；负声望会涨价。当前钱币 ${state.money}。`;
     $("reputationList").innerHTML = regionLabels.map(name => `<span class="${name === region ? "current" : ""}">${name}<b>${state.regionalReputation[name] || 0}</b></span>`).join("");
-    $("shopList").innerHTML = equipmentCatalog.map(item => {
+    $("shopList").innerHTML = equipmentCatalog.filter(item => !item.rewardOnly || state.inventory.ownedEquipment.includes(item.id)).map(item => {
       const price = shopPrice(item);
       const owned = item.type === "service" ? state.equipment.durability >= 100 : item.type !== "supply" && [state.equipment.weapon, state.equipment.focus, state.equipment.armor].includes(item.name);
       const canSwap = !owned && state.inventory.ownedEquipment.includes(item.id);
@@ -723,14 +774,13 @@
     const item = equipmentCatalog.find(entry => entry.id === id);
     if (!item) return;
     const canSwap = state.inventory.ownedEquipment.includes(item.id);
+    if (item.rewardOnly && !canSwap) return;
     const price = canSwap ? 0 : shopPrice(item);
     if (state.money < price) return;
-    if (item.food && state.survival.food >= 30) { showToast("口粮最多携带30份"); return; }
     if (item.type === "service" && state.equipment.durability >= 100) return;
     if (["weapon", "focus", "armor"].includes(item.type) && state.equipment[item.type] === item.name) return;
     state.money -= price;
-    if (item.food) state.survival.food = Math.min(30, state.survival.food + item.food);
-    else if (item.item) state.inventory[item.item] = (state.inventory[item.item] || 0) + 1;
+    if (item.item) state.inventory[item.item] = (state.inventory[item.item] || 0) + 1;
     else if (item.type === "service") state.equipment.durability = 100;
     else { state.equipment[item.type] = item.name; state.equipment.bonuses[item.type] = item.bonus || 0; if (!canSwap) state.inventory.ownedEquipment.push(item.id); }
     autoSave(); renderShop(); render(); showToast(`已购买：${item.name}`);
@@ -823,10 +873,8 @@
     };
   }
 
-  function formatAge(months = state.ageMonths) {
-    const years = Math.floor(months / 12);
-    const rest = months % 12;
-    return rest ? `${years}岁${rest}个月` : `${years}岁`;
+  function formatAge(months = state.ageMonths, days = state.ageDays || 0) {
+    return formatSavedAge(months,days);
   }
 
   function chapterForAge() {
@@ -885,7 +933,7 @@
     if (choice.requires && !choice.requires(state)) return;
     const event = currentEvent();
     applyEffects(choice.effects);
-    if (choice.food) state.survival.food = Math.min(30, state.survival.food + choice.food);
+    if (choice.medicine) state.inventory.medicine += choice.medicine;
     if (choice.relation) updateRelation(choice.relation);
     if (choice.revealFitz) state.relations["希露菲"] = Math.max(state.relations["希露菲"] || 0, state.relations["菲兹"] || 0);
     if (choice.unlock) unlockLocation(choice.unlock);
@@ -962,7 +1010,7 @@
       $(`bar${id}`).style.width = `${state.stats[key]}%`;
     });
     $("moneyValue").textContent = state.money;
-    $("foodValue").textContent = state.survival.food;
+    $("medicineValue").textContent = state.inventory.medicine;
     $("fatigueValue").textContent = state.survival.fatigue;
     $("moraleValue").textContent = state.survival.morale;
     $("fameValue").textContent = state.fame;
@@ -975,7 +1023,7 @@
     $("goalCardTitle").textContent = goalCopy[p.goal][0];
     $("goalCardText").textContent = goalCopy[p.goal][1];
     $("equipmentSummary").textContent = `${state.equipment.weapon} · ${state.equipment.focus} · ${state.equipment.armor} · 耐久 ${state.equipment.durability}/100`;
-    $("survivalWarning").textContent = state.survival.food <= 1 ? "口粮告急：行动会造成额外疲劳和体魄损失。" : state.survival.fatigue >= 75 ? "疲劳过高：建议休息或使用药品。" : state.survival.morale <= 30 ? "士气低落：与伙伴相处或完成目标可以恢复。" : "状态稳定，可以安排训练、工作或旅行。";
+    $("survivalWarning").textContent = state.survival.fatigue >= 75 ? "疲劳偏高：可免费休息或使用药品。" : "无需准备口粮，放心安排训练、互动和旅行。";
     renderProgression();
     renderMainQuest();
     renderMap();
@@ -1110,7 +1158,7 @@
       const proficiency = clamp(state.skills[skill.id] || 0);
       const known = proficiency > 0;
       const route = talentNodes.find(node => node.id === skillRoute(skill));
-      return `<article class="skill-item${canLearn ? "" : " locked"}"><span class="skill-rank-icon">${escapeHtml(skill.mark)}</span><div><h3>${escapeHtml(skill.name)} · ${masteryTiers[skill.tier].name}</h3><p>${escapeHtml(skill.description)}</p><div class="skill-progress"><i style="width:${proficiency}%"></i></div><p>${known ? `熟练度 ${proficiency}/100` : canLearn ? "已达到领悟条件" : `需要${required.name}领域等级${route ? `和${route.name}路线` : ""}`} · 1钱币 / 1口粮</p></div><button type="button" data-train-skill="${skill.id}" data-domain="${currentSkillTab}" ${canLearn ? "" : "disabled"}>${known ? "修炼招式" : "尝试领悟"}</button></article>`;
+      return `<article class="skill-item${canLearn ? "" : " locked"}"><span class="skill-rank-icon">${escapeHtml(skill.mark)}</span><div><h3>${escapeHtml(skill.name)} · ${masteryTiers[skill.tier].name}</h3><p>${escapeHtml(skill.description)}</p><div class="skill-progress"><i style="width:${proficiency}%"></i></div><p>${known ? `熟练度 ${proficiency}/100` : canLearn ? "已达到领悟条件" : `需要${required.name}领域等级${route ? `和${route.name}路线` : ""}`} · 1钱币 / 疲劳+5</p></div><button type="button" data-train-skill="${skill.id}" data-domain="${currentSkillTab}" ${canLearn ? "" : "disabled"}>${known ? "修炼招式" : "尝试领悟"}</button></article>`;
     }).join("");
     $("skillList").querySelectorAll("[data-train-skill]").forEach(button => button.addEventListener("click", () => trainSkill(button.dataset.trainSkill, button.dataset.domain)));
   }
@@ -1118,7 +1166,7 @@
   function trainSkill(skillId, domain) {
     const skill = skillCatalog[domain].find(item => item.id === skillId);
     if (!skill || !skillAvailable(skill, domain)) return;
-    if (state.money < 1 || state.survival.food < 1) { showToast("修炼需要1钱币和至少1份口粮"); return; }
+    if (state.money < 1) { showToast("修炼需要1钱币，可先工作或领取新手奖励"); return; }
     if (state.survival.fatigue >= 85) { showToast("疲劳达到85，请先休息再训练"); return; }
     preservePendingEvent();
     state.money -= 1;
@@ -1153,7 +1201,7 @@
 
   function openPractice() {
     if (!state.combat) {
-      if (state.survival.food < 1 || state.survival.fatigue >= 85) { showToast("对练需要1口粮且疲劳低于85，请先补给或休息"); return; }
+      if (state.survival.fatigue >= 85) { showToast("疲劳达到85，请先免费休息"); return; }
       applyLivingCost(1, 5, "training");
       state.combat = { hp: 70, enemy: 75 + Math.min(playerLevel(), 20), mana: 40, stamina: 35, round: 0, log: ["练习傀儡启动。先观察它的动作。"], used: [] };
       autoSave();
@@ -1208,6 +1256,7 @@
     c.log = c.log.slice(-6);
     if (c.hp === 0 || c.enemy === 0 || c.round >= 30) {
       const won = c.enemy === 0;
+      if (won) state.quests.counters.victory++;
       preservePendingEvent();
       for (const skill of c.used) state.skills[skill] = clamp(state.skills[skill] + (won ? 6 : 2));
       addProgress({ xp: won ? 12 : 4 });
@@ -1315,19 +1364,18 @@
     $("mapDetailRegion").textContent = info.region;
     $("mapDetailText").textContent = unlocked ? info.text : `尚未解锁：${unlockRequirements[name] || "继续探索世界并推进人生"}。`;
     $("mapDetailDanger").textContent = info.danger;
-    $("mapDetailTime").textContent = `${info.months} 个月 · ${info.cost} 钱币 · ${travelFoodCost(info.months)} 口粮`;
+    $("mapDetailTime").textContent = `${info.months} 个月 · ${info.cost} 钱币`;
     const button = $("travelButton");
     const current = state.location === name;
-    const foodCost = travelFoodCost(info.months);
-    const affordable = state.money >= info.cost && state.survival.food >= foodCost;
+    const affordable = state.money >= info.cost;
     button.disabled = !unlocked || current || !affordable;
-    button.textContent = current ? "当前位置" : !unlocked ? "地点未解锁" : state.money < info.cost ? `钱币不足（需要 ${info.cost}）` : state.survival.food < foodCost ? `口粮不足（需要 ${foodCost}）` : `前往 ${name}（口粮 ${foodCost}）`;
+    button.textContent = current ? "当前位置" : !unlocked ? "地点未解锁" : state.money < info.cost ? `钱币不足（需要 ${info.cost}）` : `前往 ${name}`;
     document.querySelectorAll(".map-node").forEach(node => node.classList.toggle("selected", node.dataset.location === name));
   }
 
   function travelTo(name) {
     const info = worldLocations[name];
-    if (!info || !state.unlockedLocations.includes(name) || state.location === name || state.money < info.cost || state.survival.food < travelFoodCost(info.months)) return;
+    if (!info || !state.unlockedLocations.includes(name) || state.location === name || state.money < info.cost) return;
     const from = state.location;
     state.resumeEventId = null;
     state.money -= info.cost;
@@ -1382,7 +1430,7 @@
     let months = 3;
     let actionSwordStyle = "swordGod";
     const training = /(练|魔法|魔术|咏唱|挥砍|跑步|体能|格挡|反击|佯攻)/.test(text);
-    if (training && (state.money < 1 || state.survival.food < 1 || state.survival.fatigue >= 85)) { $("freeActionHint").textContent = "训练需要1钱币、1口粮且疲劳低于85；可先工作、采集或休息。"; return; }
+    if (training && (state.money < 1 || state.survival.fatigue >= 85)) { $("freeActionHint").textContent = "训练需要1钱币且疲劳低于85；可先工作或免费休息。"; return; }
     if (training) { state.money--; markTutorial("train"); }
     const add = (key, value) => { effects[key] = (effects[key] || 0) + value; };
     if (/(火魔法|火魔术|火球|火焰)/.test(text)) {
@@ -1442,20 +1490,26 @@
     if (action === "work") {
       const income = 8 + (hasTalent("caravan_network") ? 3 : 0) - (state.survival.fatigue >= 75 ? 3 : 0);
       state.money += income;
-      state.survival.food = Math.min(30, state.survival.food + 1);
+      markTutorial("work");
       applyLivingCost(1, 7);
       addProgress({xp:4,life:2}); addRegionalReputation(1);
-      title = "完成包饭工作"; result = `你完成适合自己年龄的帮工，得到${income}钱币与当期伙食。工作疲劳+7；没有预付费用，身无分文也可接取。`;
+      title = "完成日常工作"; result = `你完成适合自己年龄的帮工，得到${income}钱币。工作疲劳+7；没有预付费用，身无分文也可接取。`;
     } else if (action === "forage") {
-      const food = hasTalent("field_lore") ? 4 : 3;
-      state.survival.food = Math.min(30, state.survival.food + food);
+      const income = hasTalent("field_lore") ? 5 : 3;
+      state.money += income; state.inventory.medicine++; markTutorial("forage");
       applyLivingCost(1, 5); addProgress({xp:3,life:3});
-      title = "采集与换取食物"; result = `你在附近采集可确认安全的食材，或在城镇用杂务换取食物。获得${food}份口粮，本期吃掉1份（背包上限30），疲劳+5。`;
+      title = "采集药草"; result = `你学习辨认药草，并在药师协助下处理成可用的药品。获得1份药品及${income}钱币，疲劳+5。可在自由行动输入“使用药品”。`;
     } else {
-      state.survival.fatigue = clamp(state.survival.fatigue - 25); state.survival.morale = clamp(state.survival.morale + 8); state.stats.vitality = clamp(state.stats.vitality + 5);
-      title = "留出休整时间"; result = "你停下高强度活动，利用基础食宿休整。疲劳-25、士气+8、体魄+5；休整不另收钱币或旅行口粮，也不获得经验。";
+      const recovered = Math.min(state.survival.fatigue, REST_FATIGUE_RECOVERY);
+      state.survival.fatigue = clamp(state.survival.fatigue - REST_FATIGUE_RECOVERY); state.survival.morale = clamp(state.survival.morale + 8); state.stats.vitality = clamp(state.stats.vitality + 5);
+      title = "安心休息一天"; result = `你睡了一个好觉，第二天精神明显恢复。疲劳降低${recovered}（每天最多恢复${REST_FATIGUE_RECOVERY}）、士气+8、体魄+5。只经过1天，免费；不获得经验，也不增加主线准备进度。`;
     }
-    state.turn++; state.ageMonths++; state.story.sideSinceMain++; state.freeActionCount++;
+    state.turn++; state.freeActionCount++;
+    if (action === "rest") {
+      // Game calendar: 30 days per month. Recovery never adds a main-story step.
+      state.ageDays = (state.ageDays || 0) + 1;
+      state.ageMonths += Math.floor(state.ageDays / 30); state.ageDays %= 30;
+    } else { state.ageMonths++; state.story.sideSinceMain++; }
     state.currentEventId = "free_action"; state.lastChoice = title; state.lastResult = result; state.phase = "result"; state.chapter = chapterForAge();
     state.history.unshift({age:formatAge(), location:state.location, title:"生计与休整", choice:title, result}); state.history = state.history.slice(0,40);
     checkMilestones(); autoSave(); render();
@@ -1477,11 +1531,147 @@
     try { return JSON.parse(raw); } catch { return null; }
   }
 
+  const RECOVERY_KEY = "six-faced-life.before-import.v1";
+  let pendingImport = null, pendingUpload = null, accountBusy = false;
+
+  function validateSave(input) {
+    const fail = () => { throw new Error("存档格式无效或版本不受支持，当前人生未改变。"); };
+    const scan = (value, depth = 0) => {
+      if (depth > 12) fail();
+      if (typeof value === "number" && (!Number.isFinite(value) || Math.abs(value) > 1e9)) fail();
+      if (typeof value === "string" && value.length > 10000) fail();
+      if (value && typeof value === "object") for (const [key, child] of Object.entries(value)) {
+        if (["__proto__", "constructor", "prototype"].includes(key)) fail();
+        scan(child, depth + 1);
+      }
+    };
+    scan(input);
+    if (!input || typeof input !== "object" || !input.profile || !input.stats || (input.version && (![1,2,3,4,5].includes(input.version)))) fail();
+    const p = input.profile;
+    if (typeof p.name !== "string" || !p.name.trim() || p.name.length > 40 || !Object.hasOwn(baseStats.identity,p.identity) || !Object.hasOwn(baseStats.race,p.race) || !Object.hasOwn(startAge,p.timeline) || !Object.hasOwn(worldLocations,p.location) || !Object.hasOwn(goalCopy,p.goal) || !Object.hasOwn(worldLocations,input.location)) fail();
+    const shape = blankState(p);
+    shape.profile = {name:"",identity:"",race:"",timeline:"",location:"",goal:""};
+    const checkTypes = (value, sample) => {
+      if (value === undefined) return;
+      if (Array.isArray(sample)) { if (!Array.isArray(value)) fail(); return; }
+      if (sample && typeof sample === "object") {
+        if (!value || typeof value !== "object" || Array.isArray(value)) fail();
+        for (const [key,child] of Object.entries(sample)) checkTypes(value[key],child);
+      } else if (typeof value !== typeof sample) fail();
+    };
+    checkTypes(input,shape);
+    const saved = migrateState(deepCopy(input));
+    // Whitelist structural fields. Unknown data (including credentials) is never exported.
+    const project = (value, sample) => {
+      if (Array.isArray(sample)) { if (!Array.isArray(value)) fail(); return value; }
+      if (sample && typeof sample === "object") {
+        if (!value || typeof value !== "object" || Array.isArray(value)) fail();
+        return Object.fromEntries(Object.entries(sample).map(([key, child]) => [key, project(value[key], child)]));
+      }
+      if (typeof value !== typeof sample) fail();
+      return value;
+    };
+    const clean = project(saved,shape);
+    const stringArray = (value, limit = 1000) => { if (!Array.isArray(value) || value.length > limit || value.some(item => typeof item !== "string")) fail(); return value; };
+    for (const key of ["seen","achievements","talents","unlockedLocations","visitedLocations","bondMemories"]) clean[key] = stringArray(saved[key]);
+    if ([...clean.unlockedLocations,...clean.visitedLocations].some(name => !Object.hasOwn(worldLocations,name))) fail();
+    const numberMap = (value, min = 0, max = 1e9) => {
+      if (!value || typeof value !== "object" || Array.isArray(value) || Object.values(value).some(n => typeof n !== "number" || !Number.isFinite(n) || n < min || n > max)) fail();
+      return {...value};
+    };
+    clean.relations = numberMap(saved.relations,-100,100);
+    clean.skills = numberMap(saved.skills,0,100);
+    numberMap(clean.stats,0,100); numberMap(clean.survival,0,100); numberMap(clean.quests.counters);
+    if (clean.money < 0 || clean.ageMonths < 0 || clean.turn < 0 || clean.inventory.medicine < 0 || clean.progression.xp < 0 || !["event","result"].includes(clean.phase)) fail();
+    if (!Number.isInteger(clean.ageDays) || clean.ageDays < 0 || clean.ageDays >= 30) fail();
+    clean.tutorial.actions = stringArray(saved.tutorial.actions);
+    clean.tutorial.claimed = stringArray(saved.tutorial.claimed);
+    clean.inventory.ownedEquipment = stringArray(saved.inventory.ownedEquipment);
+    if (!Array.isArray(saved.history) || saved.history.length > 100) fail();
+    clean.history = saved.history.map(item => project(item,{age:"",location:"",title:"",choice:"",result:""}));
+    clean.quests.records = {};
+    for (const quest of sideQuests) if (saved.quests.records[quest.id]) {
+      const record = saved.quests.records[quest.id];
+      if (!Number.isInteger(record.start) || record.start < 0 || record.start > clean.quests.counters[quest.counter] || (record.claimed !== undefined && typeof record.claimed !== "boolean")) fail();
+      clean.quests.records[quest.id] = {start:record.start,claimed:!!record.claimed};
+    }
+    if (saved.resumeEventId) { if (typeof saved.resumeEventId !== "string") fail(); clean.resumeEventId = saved.resumeEventId; }
+    const validEvent = id => ["opening","life_folio","travel_arrival","free_action"].includes(id) || events.some(event => event.id === id) || (/^routine-\d+$/.test(id) && Number(id.slice(8)) < routineTemplates.length);
+    if (!validEvent(clean.currentEventId) || (clean.resumeEventId && !validEvent(clean.resumeEventId))) fail();
+    if (saved.combat) {
+      clean.combat = project(saved.combat,{hp:0,enemy:0,mana:0,stamina:0,round:0,log:[],used:[]});
+      stringArray(clean.combat.log); stringArray(clean.combat.used);
+    }
+    return clean;
+  }
+
+  function saveEnvelope() {
+    if (!state) throw new Error("请先开始或读取一轮人生。");
+    return {format:"six-faced-life-save",version:1,exportedAt:new Date().toISOString(),state:validateSave(state)};
+  }
+
+  function previewImport(payload, source) {
+    if (!payload || payload.format !== "six-faced-life-save" || payload.version !== 1) throw new Error("请选择本游戏导出的 JSON 存档，不是 TXT 传记。");
+    pendingImport = validateSave(payload.state);
+    $("importSummary").textContent = `${source}：${pendingImport.profile.name} · ${formatSavedAge(pendingImport.ageMonths,pendingImport.ageDays)} · ${pendingImport.location} · ${pendingImport.turn}回合`;
+    $("importModal").showModal();
+  }
+
+  function confirmImport() {
+    if (!pendingImport) return false;
+    try {
+      const next = validateSave(pendingImport);
+      const previous = state || safeParse(localStorage.getItem(STORAGE_KEY));
+      if (previous) localStorage.setItem(RECOVERY_KEY, JSON.stringify({format:"six-faced-life-save",version:1,state:validateSave(previous)}));
+      localStorage.setItem(STORAGE_KEY,JSON.stringify(next));
+      state = next; pendingImport = null; refreshUnlockedLocations();
+      ["importModal","saveModal","accountModal","startModal"].forEach(id => $(id).close());
+      render(); autoSave(); showToast("已读取存档；原人生可从导入前备份恢复"); return true;
+    } catch (error) { showToast(error.message || "读取失败，本机存档未替换"); return false; }
+  }
+
+  function exportSave() {
+    try {
+      const blob = new Blob([JSON.stringify(saveEnvelope(),null,2)],{type:"application/json"});
+      const url = URL.createObjectURL(blob), link = document.createElement("a");
+      link.href = url; link.download = `六面世界-存档-${new Date().toISOString().slice(0,10)}.json`; link.click();
+      setTimeout(() => URL.revokeObjectURL(url),1000); showToast("已生成可恢复的 JSON 存档");
+    } catch (error) { showToast(error.message); }
+  }
+
+  function renderAccount(message) {
+    const cloud = window.SixFacedCloud, user = cloud?.currentUser();
+    $("accountStatus").textContent = message || (!cloud?.configured ? "尚未配置云服务：登录和云存档未启用。本机自动存档、手动存档和 JSON 备份可以正常使用。" : user ? `已登录：${user.email}。本机与云端不会自动互相覆盖。` : "云服务已配置，请登录。跨设备需先上传，再在另一设备登录并读取。");
+    ["loginButton","signupButton","accountEmail","accountPassword"].forEach(id => $(id).disabled = !cloud?.configured || accountBusy || !!user);
+    ["logoutButton","uploadCloudButton","downloadCloudButton"].forEach(id => $(id).disabled = !user || accountBusy || (id === "uploadCloudButton" && !state));
+  }
+
+  async function accountAction(action) {
+    if (accountBusy) return;
+    accountBusy = true; renderAccount("正在连接云服务……");
+    try { const message = await action(); renderAccount(message); }
+    catch (error) { renderAccount(error.message); }
+    finally { accountBusy = false; const message = $("accountStatus").textContent; renderAccount(message); }
+  }
+
+  function login(signup = false) {
+    if (!$("accountForm").reportValidity()) return;
+    const email = $("accountEmail").value.trim(), password = $("accountPassword").value;
+    $("accountPassword").value = "";
+    return accountAction(async () => {
+      const user = await window.SixFacedCloud.authenticate(email,password,signup);
+      return user ? `已登录：${user.email}；当前本机人生未改变。` : "注册请求已受理。请查收验证邮件；若已有账号，请直接登录。";
+    });
+  }
+
   function autoSave() {
     if (!state) return;
     state.updatedAt = new Date().toISOString();
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    $("saveIndicator").innerHTML = "<i></i> 已自动存档";
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      $("saveIndicator").innerHTML = "<i></i> 已自动存档";
+      return true;
+    } catch { $("saveIndicator").textContent = "保存失败，请导出备份"; showToast("浏览器无法写入存档，请立即导出 JSON 备份"); return false; }
   }
 
   function migrateState(saved) {
@@ -1489,6 +1679,8 @@
     saved.phase = saved.phase || "event";
     saved.achievements = saved.achievements || [];
     saved.relations = saved.relations || {};
+    saved.bondMemories = saved.bondMemories || [];
+    saved.ageDays = saved.ageDays ?? 0;
     saved.history = saved.history || [];
     saved.seen = saved.seen || [];
     saved.currentEventId = saved.currentEventId || "opening";
@@ -1501,14 +1693,16 @@
     saved.story = saved.story || { sideSinceMain: 0, mainCompleted: saved.seen.filter(id => mainEventIds.has(id)).length };
     const defaults = blankState(saved.profile);
     saved.survival = { ...defaults.survival, ...saved.survival };
+    delete saved.survival.food;
     saved.equipment = { ...defaults.equipment, ...saved.equipment, bonuses: { ...defaults.equipment.bonuses, ...(saved.equipment || {}).bonuses } };
     saved.inventory = { ...defaults.inventory, ...saved.inventory };
     saved.inventory.ownedEquipment = [...new Set([...(Array.isArray(saved.inventory.ownedEquipment) ? saved.inventory.ownedEquipment : []), ...equipmentCatalog.filter(item => ["weapon", "focus", "armor"].includes(item.type) && saved.equipment[item.type] === item.name).map(item => item.id)])];
     saved.talents = Array.isArray(saved.talents) ? [...new Set(saved.talents)].filter(id => talentNodes.some(node => node.id === id)) : [];
     saved.regionalReputation = { ...defaults.regionalReputation, ...saved.regionalReputation };
-    saved.tutorial = { actions: Array.isArray(saved.tutorial?.actions) ? saved.tutorial.actions : [] };
+    saved.tutorial = { actions: Array.isArray(saved.tutorial?.actions) ? saved.tutorial.actions : [], claimed: Array.isArray(saved.tutorial?.claimed) ? saved.tutorial.claimed.filter(id => id === "graduation" || tutorialGoals.some(goal => goal.id === id)) : [] };
+    saved.quests = { counters: { ...defaults.quests.counters, ...saved.quests?.counters }, records: { ...saved.quests?.records } };
     saved.encounterCount = saved.encounterCount || 0;
-    saved.version = 4;
+    saved.version = 5;
     return saved;
   }
 
@@ -1529,7 +1723,7 @@
   function renderSlots() {
     const items = slots();
     $("saveSlots").innerHTML = items.map((item, index) => {
-      const summary = item ? `${item.profile.name} · ${formatSavedAge(item.ageMonths)} · ${item.location} · ${new Date(item.updatedAt).toLocaleString("zh-CN")}` : "空存档位";
+      const summary = item ? `${item.profile.name} · ${formatSavedAge(item.ageMonths,item.ageDays)} · ${item.location} · ${new Date(item.updatedAt).toLocaleString("zh-CN")}` : "空存档位";
       return `<div class="save-slot"><div><h3>命运书页 ${index + 1}</h3><p>${escapeHtml(summary)}</p></div><div class="slot-actions"><button data-save-slot="${index}">${item ? "覆盖" : "保存"}</button>${item ? `<button data-load-slot="${index}">读取</button><button class="delete-slot" data-delete-slot="${index}">删除</button>` : ""}</div></div>`;
     }).join("");
     document.querySelectorAll("[data-save-slot]").forEach(button => button.addEventListener("click", () => saveSlot(Number(button.dataset.saveSlot))));
@@ -1537,17 +1731,18 @@
     document.querySelectorAll("[data-delete-slot]").forEach(button => button.addEventListener("click", () => deleteSlot(Number(button.dataset.deleteSlot))));
   }
 
-  function formatSavedAge(months) {
+  function formatSavedAge(months, days = 0) {
     const years = Math.floor(months / 12), rest = months % 12;
-    return rest ? `${years}岁${rest}个月` : `${years}岁`;
+    return (rest ? `${years}岁${rest}个月` : `${years}岁`) + (days ? `${days}天` : "");
   }
 
   function saveSlot(index) {
-    markTutorial("save"); checkMilestones(); autoSave(); renderTutorial();
     const items = slots();
     items[index] = deepCopy(state);
+    if (!items[index].tutorial.actions.includes("save")) items[index].tutorial.actions.push("save");
     items[index].updatedAt = new Date().toISOString();
-    writeSlots(items);
+    try { writeSlots(items); } catch { showToast("存档位保存失败，请导出备份"); return; }
+    markTutorial("save"); checkMilestones(); autoSave(); renderTutorial();
     renderSlots();
     showToast(`已保存到命运书页 ${index + 1}`);
   }
@@ -1624,6 +1819,40 @@
   }
 
   $("startForm").addEventListener("submit", startFromForm);
+  $("exportSaveButton").addEventListener("click", exportSave);
+  document.querySelectorAll("[data-import-save]").forEach(button => button.addEventListener("click", () => $("importSaveInput").click()));
+  $("importSaveInput").addEventListener("change", async event => {
+    const file = event.target.files[0]; event.target.value = ""; if (!file) return;
+    try { if (file.size > 524288) throw new Error("存档超过512KB，请选择本游戏导出的文件。"); previewImport(JSON.parse(await file.text()),"文件存档"); }
+    catch (error) { showToast(error instanceof SyntaxError ? "JSON 文件损坏，当前存档未变" : error.message); }
+  });
+  $("confirmImport").addEventListener("click", confirmImport);
+  $("recoverSaveButton").addEventListener("click", () => {
+    try { const backup = safeParse(localStorage.getItem(RECOVERY_KEY)); if (!backup) return showToast("还没有导入前备份"); previewImport(backup,"导入前备份"); } catch (error) { showToast(error.message); }
+  });
+  document.querySelectorAll("[data-open-account]").forEach(button => button.addEventListener("click", () => { renderAccount(); $("accountModal").showModal(); }));
+  $("accountForm").addEventListener("submit", event => { event.preventDefault(); login(); });
+  $("signupButton").addEventListener("click", () => login(true));
+  $("logoutButton").addEventListener("click", () => accountAction(async () => { await window.SixFacedCloud.logout(); return "已退出登录；本机存档保留。"; }));
+  $("downloadCloudButton").addEventListener("click", () => accountAction(async () => {
+    const row = await window.SixFacedCloud.read(); if (!row) return "云端暂无存档，可先上传当前人生。";
+    previewImport(row.payload,`云端版本 ${row.revision}`); return "云档已读取，请检查确认后替换本机。";
+  }));
+  $("uploadCloudButton").addEventListener("click", () => accountAction(async () => {
+    const payload = saveEnvelope(), row = await window.SixFacedCloud.read();
+    pendingUpload = {payload,revision:row?.revision || 0,userId:window.SixFacedCloud.currentUser().id};
+    $("uploadSummary").textContent = `即将上传：${payload.state.profile.name} · ${formatSavedAge(payload.state.ageMonths,payload.state.ageDays)}。${row ? `替换云端版本${row.revision}（${new Date(row.updated_at).toLocaleString("zh-CN")}）` : "云端尚无存档，将新建一份"}。`;
+    $("confirmUpload").disabled = false; $("uploadModal").showModal(); return "已检查云端，请确认上传。";
+  }));
+  $("confirmUpload").addEventListener("click", () => accountAction(async () => {
+    const upload = pendingUpload; pendingUpload = null; $("confirmUpload").disabled = true;
+    if (!upload || upload.userId !== window.SixFacedCloud.currentUser()?.id) throw new Error("登录状态已改变，请重新检查云端。");
+    $("uploadModal").close(); await window.SixFacedCloud.write(upload.payload,upload.revision); return "云端上传成功。换设备登录后可读取这份人生。";
+  }));
+  $("accountModal").addEventListener("close", () => { $("accountPassword").value = ""; });
+  $("importModal").addEventListener("close", () => { pendingImport = null; });
+  $("uploadModal").addEventListener("close", () => { pendingUpload = null; });
+  $("questsButton").addEventListener("click", () => { renderSideQuests(); $("sideQuestModal").showModal(); });
   $("shopButton").addEventListener("click", openShop);
   $("mobilePanelToggle").addEventListener("click", () => {
     const collapsed = document.querySelector(".character-panel").classList.toggle("mobile-collapsed");

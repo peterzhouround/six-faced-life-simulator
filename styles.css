@@ -148,6 +148,24 @@ footer { text-align:center;color:#7c817d;font-size:.62rem;padding:0 1rem 2rem; }
 .tutorial-panel button { border:0;background:transparent;color:inherit;text-align:left;padding:.4rem;min-height:40px; }
 .character-panel,#storyCard,#choiceList { scroll-margin-top:85px; }
 button:focus-visible { outline:2px solid var(--gold);outline-offset:3px; }
+.tutorial-panel li > div { flex:1;min-width:0; }
+.tutorial-panel li small { display:block;font-size:.75rem;line-height:1.6; }
+.tutorial-panel .claim-button { flex-shrink:0;border:1px solid var(--green);min-height:44px; }
+button:disabled { opacity:.5;cursor:default; }
+.side-quest { border:1px solid #c9baa3;padding:1rem;margin:.8rem 0; }
+.side-quest h3 { margin:0; }.side-quest p { line-height:1.7; }
+.side-quest button,.backup-section button,.account-form button,#accountModal button,#uploadModal button,#importModal button { min-height:44px;padding:.65rem; }
+.side-quest button { margin:.3rem .4rem .3rem 0; }
+.dialog-actions { flex-wrap:wrap; }
+.account-form { display:grid;gap:.8rem; }
+.account-form label { display:grid;gap:.4rem; }
+.account-form input { width:100%;min-width:0;padding:.75rem;font-size:16px; }
+#accountStatus,#importSummary,#uploadSummary { overflow-wrap:anywhere;line-height:1.8; }
+.backup-section { border-top:1px solid #b8aa90;margin-top:1rem; }
+.start-actions { display:grid;grid-template-columns:1fr 1fr; }
+.start-actions #beginButton,.start-actions #continueButton { grid-column:1/-1;min-height:48px; }
+.start-actions button { min-width:0;min-height:44px; }
+.modal.save-modal { max-height:calc(100dvh - 1rem);overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;touch-action:pan-y; }
 @media(max-width:760px) {
   .page-shell { padding-bottom:calc(74px + env(safe-area-inset-bottom)); }
   .mobile-nav { position:fixed;bottom:0;left:0;right:0;z-index:30;display:grid;grid-template-columns:repeat(6,1fr);gap:.2rem;background:var(--night);padding:.45rem .4rem calc(.45rem + env(safe-area-inset-bottom));border-top:1px solid var(--gold); }
