@@ -1,19 +1,20 @@
 const fs = require('node:fs'), vm = require('node:vm'), assert = require('node:assert/strict'), path = require('node:path');
 const elements = new Map(), storage = new Map(); let failStorage = false;
-const el = () => ({style:{},dataset:{},value:'',classList:{add(){},remove(){},toggle(){}},setAttribute(){},scrollIntoView(){},addEventListener(){},querySelector(){return el()},querySelectorAll(){return []},appendChild(){},focus(){},showModal(){this.open=true},close(){this.open=false}});
+const el = () => ({style:{},dataset:{},value:'',classList:{add(){},remove(){},toggle(){}},setAttribute(){},scrollIntoView(){},addEventListener(){},closest(){return el()},querySelector(){return el()},querySelectorAll(){return []},appendChild(){},focus(){},showModal(){this.open=true},close(){this.open=false}});
 const context = {window:{},document:{getElementById(id){if(!elements.has(id))elements.set(id,el());return elements.get(id)},querySelector:el,querySelectorAll(){return []},createElement:el},localStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>{if(failStorage)throw new Error('quota');storage.set(k,v)}},setTimeout(){},clearTimeout(){},Date,Math,console};
 vm.createContext(context);
+vm.runInContext(fs.readFileSync(path.join(__dirname,'../story-arcs.js'),'utf8'),context);
 const source = fs.readFileSync(path.join(__dirname,'../game.js'),'utf8');
 const expose = 'globalThis.game={blankState,migrateState,loadState,saveSlot,loadSlot,trainSkill,performInteraction,continueStory,resolveChoice,mainEventReady,openPractice,combatTurn,events,mainSideRequirements,getEventById,runFreeAction,travelTo,dailyAction,buyItem,learnTalent,talentPoints,tutorialGoals,sideQuests,claimTutorial,questAction,questProgress,grantReward,applyLivingCost,validateSave,saveEnvelope,previewImport,confirmImport,get state(){return state},set state(v){state=v}};';
 vm.runInContext(source.replace(/  openStart\(\);\r?\n\}\)\(\);/,expose+'\n})();'),context);
 const g = context.game, profile = {name:'测试旅人',identity:'转生者',race:'人族',timeline:'childhood',location:'布艾纳村',goal:'magic'};
 const fresh = () => (g.state=g.blankState({...profile})), clone = x => JSON.parse(JSON.stringify(x));
 const key = 'six-faced-life.autosave.v1'; let s;
-for (const version of [1,2,3,4]) {
+for (const version of [1,2,3,4,5]) {
  const old=clone(fresh()); old.version=version; old.turn=17;old.relations={'洛琪希':24};old.seen=['transfer_calamity'];delete old.quests;old.tutorial={actions:['train']};
  if(version<4)for(const field of ['survival','equipment','inventory','talents','regionalReputation','encounterCount','progression','story'])delete old[field];
  else old.survival.food=0;
- g.loadState(old);s=g.state;assert.equal(s.version,5);assert.equal(s.relations['洛琪希'],24);assert.equal(s.turn,17);assert(!('food' in s.survival));assert.equal(JSON.parse(storage.get(key)).version,5);
+ g.loadState(old);s=g.state;assert.equal(s.version,6);assert.equal(s.relations['洛琪希'],24);assert.equal(s.turn,17);assert(!('food' in s.survival));assert.equal(JSON.parse(storage.get(key )).version,6);
  assert(g.claimTutorial('train'));assert(s.inventory.ownedEquipment.includes('novice_sword'));g.loadState(clone(s));assert(!g.claimTutorial('train'));g.validateSave(s);
 }
 s=fresh();g.trainSkill('water_ball','magic');assert.equal(s.skills.water_ball,27);assert.equal(s.money,11);assert.equal(s.resumeEventId,'opening');assert(!('food' in s.survival));g.continueStory();assert.equal(s.currentEventId,'opening');
@@ -25,7 +26,7 @@ g.dailyAction('work');g.dailyAction('work');assert.equal(g.questProgress(helper)
 for(const quest of g.sideQuests){s=fresh();s.tutorial.claimed=['choice'];assert(g.questAction(quest.id,'accept'));s.quests.counters[quest.counter]+=quest.need;assert(g.questAction(quest.id,'claim'));assert(!g.questAction(quest.id,'claim'));g.validateSave(s);}
 s=fresh();s.tutorial.actions=['choice','train','bond','travel','save'];for(const goal of g.tutorialGoals)assert(g.claimTutorial(goal.id));assert.equal(s.progression.xp,128);assert(s.tutorial.claimed.includes('graduation'));assert(s.inventory.ownedEquipment.includes('mage_staff'));const graduated=clone(s);for(const goal of g.tutorialGoals)assert(!g.claimTutorial(goal.id));assert.deepEqual(clone(s),graduated);
 s=fresh();s.money=100;g.buyItem('iron_sword');g.grantReward({equipment:'novice_sword'});assert.equal(s.equipment.bonuses.weapon,3);assert(s.inventory.ownedEquipment.includes('novice_sword'));
-s=fresh();g.saveSlot(0);assert(s.tutorial.actions.includes('save'));g.dailyAction('work');g.loadSlot(0);assert.equal(g.state.money,12);assert.equal(g.state.version,5);assert(g.state.tutorial.actions.includes('save'));
+s=fresh();g.saveSlot(0);assert(s.tutorial.actions.includes('save'));g.dailyAction('work');g.loadSlot(0);g.confirmImport();assert.equal(g.state.money,12);assert.equal(g.state.version,6);assert(g.state.tutorial.actions.includes('save'));
 s=fresh();failStorage=true;g.saveSlot(1);assert(!s.tutorial.actions.includes('save'));failStorage=false;
 s=fresh();s.progression.xp=180;g.learnTalent('silent_cast');assert.equal(s.talents.length,0);g.learnTalent('mana_control');g.learnTalent('element_fire');g.learnTalent('silent_cast');assert.equal(g.talentPoints(),0);assert.equal(s.skills.fire_ball,10);
 s=fresh();g.runFreeAction('练习火魔法');assert.equal(s.skills.fire_ball,undefined);assert(s.lastResult.includes('火系研究'));g.runFreeAction('练习水神流格挡');assert.equal(s.progression.swordStyles.waterGod,6);
@@ -44,4 +45,4 @@ s=fresh();for(let i=0;i<300;i++){
 }
 const html=fs.readFileSync(path.join(__dirname,'../index.html'),'utf8');const ids=[...html.matchAll(/id="([^"]+)"/g)].map(m=>m[1]);assert.equal(ids.length,new Set(ids).size);for(const match of source.matchAll(/\$\("([^"]+)"\)/g))assert(ids.includes(match[1]),`Missing DOM id ${match[1]}`);
 if(process.env.QA_FIXTURE_DIR){s=fresh();fs.writeFileSync(path.join(process.env.QA_FIXTURE_DIR,'save-v5-fixture.json'),JSON.stringify(g.saveEnvelope(),null,2));s.survival.fatigue=100;fs.writeFileSync(path.join(process.env.QA_FIXTURE_DIR,'rest-v5-fixture.json'),JSON.stringify(g.saveEnvelope(),null,2));}
-console.log('PASS v5: legacy migrations, no-food economy, tutorial rewards, all 6 side quests, repeat-claim guards, talents, combat, travel, main pacing, save validation/recovery/storage failure, DOM IDs, 300 turns');
+console.log('PASS legacy regression: v1-v5 migrations, no-food economy, tutorial rewards, all 6 side quests, repeat-claim guards, talents, combat, travel, main pacing, save validation/recovery/storage failure, DOM IDs, 300 turns');

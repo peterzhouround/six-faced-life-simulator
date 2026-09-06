@@ -4,6 +4,7 @@
   const STORAGE_KEY = "six-faced-life.autosave.v1";
   const SLOT_KEY = "six-faced-life.slots.v1";
   const REST_FATIGUE_RECOVERY = 60;
+  const storyArcs = window.SIX_FACED_STORY_ARCS || [];
   const $ = (id) => document.getElementById(id);
   const clamp = (value, min = 0, max = 100) => Math.max(min, Math.min(max, value));
   const pick = (items) => items[Math.floor(Math.random() * items.length)];
@@ -145,7 +146,7 @@
     { id: "trusted_face", branch: "生存", name: "可信之人", description: "人物互动额外获得1点羁绊，地区声望获取+1。", requires: ["caravan_network"] }
   ];
   const locationEncounters = {
-    "布艾纳村": ["你帮农户赶回走失的羊，得到一份干粮。", "骤雨冲坏小路，你绕行并记下安全渡口。"],
+    "布艾纳村": ["你帮农户赶回走失的羊，农户指明了更安全的小路。", "你把雨后仍可通行的渡口记在商队的路线本上。"],
     "罗亚城": ["城门盘查比平时严格，你的身份让守卫多问了几句。", "商队缺少搬运人手，你帮忙后得到小费。"],
     "魔大陆": ["岩甲魔兽从风蚀柱后冲出，你在恶战后保住补给。", "当地魔族猎人提醒你避开红色菌毯，省下一场中毒。"],
     "利卡里斯城": ["公会里有人拿斯佩路德传闻吓唬新人，你听到两种完全不同的说法。", "坑底集市物价混乱，你核对三家摊位才买到合理补给。"],
@@ -534,7 +535,7 @@
       else initial[key] = (initial[key] || 0) + value;
     }));
     return {
-      version: 5, profile, ageMonths: startAge[profile.timeline] || 144, ageDays: 0, location: profile.location,
+      version: 6, profile, ageMonths: startAge[profile.timeline] || 144, ageDays: 0, location: profile.location,
       chapter: startChapter[profile.timeline] || "自由人生", stats: initial, money: resourceBoost.money, fame: resourceBoost.fame,
       turn: 0, relations: {}, bondMemories: [], history: [], seen: [], achievements: [], currentEventId: "opening", phase: "event",
       unlockedLocations: [profile.location], visitedLocations: [profile.location], freeActionCount: 0,
@@ -545,6 +546,7 @@
       equipment: { weapon: "练习木剑", focus: "学徒法杖", armor: "旅行斗篷", durability: 100, bonuses: { weapon: 0, focus: 0, armor: 0 } },
       inventory: { medicine: 0, ownedEquipment: [] }, talents: [], regionalReputation: Object.fromEntries(regionLabels.map(name => [name, 0])),
       tutorial: { actions: [], claimed: [] }, quests: { counters: {train:0,work:0,forage:0,travel:0,bond:0,victory:0}, records: {} }, encounterCount: 0,
+      journal: {tracked:"",arcs:{}},
       lastResult: "", lastChoice: "", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
     };
   }
@@ -643,10 +645,9 @@
     if (index === 0) {
       const danger = ({ "低": 1, "中": 3, "高": 5, "极高": 7, "致命": 9 }[(worldLocations[name] || {}).danger] || 2);
       const loss = danger <= 3 ? 0 : Math.max(0, danger - equipmentBonus("armor"));
-      state.stats.vitality = clamp(state.stats.vitality - loss);
-      state.survival.fatigue = clamp(state.survival.fatigue + 5);
+      state.survival.fatigue = clamp(state.survival.fatigue + 5 + loss);
       addRegionalReputation(2);
-      consequence = loss ? `你承受${loss}点体魄损失；装备抵消了${danger - loss}点风险。` : "你花时间处理了这件事，没有受伤。";
+      consequence = loss ? `额外疲劳+${5 + loss}；装备抵消${danger - loss}点风险，休息即可恢复。` : "你花时间处理了这件事，疲劳+5，没有受伤。";
     } else {
       state.money += 2; state.stats.wisdom = clamp(state.stats.wisdom + 1); addRegionalReputation(1);
       consequence = "你获得2钱币与1点学识。";
@@ -719,16 +720,163 @@
       return `<article class="side-quest"><h3>${quest.name}</h3><p>${quest.text}</p><small>奖励：${rewardText(quest.reward)}</small><p>${record ? `进度 ${questProgress(quest)}/${quest.need}` : "尚未接取"}</p><div><button data-quest="${quest.id}" data-quest-action="${record ? "claim" : "accept"}" ${!unlocked || done || (record && !ready) ? "disabled" : ""}>${done ? "已领取" : !record ? "接取任务" : ready ? "领取奖励" : "进行中"}</button>${record && !done ? `<button data-quest="${quest.id}" data-quest-action="abandon">暂时放下</button>` : ""}</div></article>`;
     }).join("");
     $("sideQuestList").querySelectorAll("[data-quest]").forEach(button => button.addEventListener("click", () => questAction(button.dataset.quest,button.dataset.questAction)));
+    renderArcList();
   }
 
   function questAction(id, action) {
     const quest = sideQuests.find(item => item.id === id); const record = state.quests.records[id];
     if (!quest || !sideQuestsUnlocked() || record?.claimed) return false;
-    if (action === "accept" && !record) state.quests.records[id] = {start:state.quests.counters[quest.counter],claimed:false};
+    if (action === "accept" && !record) { state.quests.records[id] = {start:state.quests.counters[quest.counter],claimed:false}; state.journal.tracked = `quest:${id}`; }
     else if (action === "abandon" && record) delete state.quests.records[id];
     else if (action === "claim" && record && questProgress(quest)>=quest.need) { record.claimed = true; grantReward(quest.reward); logReward(quest.name,quest.reward); showToast(`支线奖励：${rewardText(quest.reward)}`); }
     else return false;
+    if ((action === "claim" || action === "abandon") && state.journal.tracked === `quest:${id}`) state.journal.tracked = "";
     checkMilestones(); autoSave(); render(); renderSideQuests(); return true;
+  }
+
+  let openedArc = null;
+
+  function arcStatus(arc) {
+    const record = state.journal.arcs[arc.id];
+    if (!record) return {ready:false,text:`接取地点：${arc.locations.join(" / ")}`};
+    if (record.step >= arc.stages.length) return {ready:false,text:record.claimed ? "已领取结局奖励" : "故事完成，可领取奖励"};
+    const stage = arc.stages[record.step];
+    const progress = stage.need ? Math.min(stage.need.count, Math.max(0,state.quests.counters[stage.need.counter] - record.baseline)) : 0;
+    return {ready:!stage.need || progress >= stage.need.count,text:stage.need ? `${stage.need.label}：${progress}/${stage.need.count}（本阶段开始后计数）` : "可以继续阅读并选择"};
+  }
+
+  function arcEnding(arc, record) {
+    return arc.stages[arc.stages.length - 1].choices.find(choice => choice.id === record.choices.at(-1))?.ending || "尚未写下结局";
+  }
+
+  function startArc(id) {
+    const arc = storyArcs.find(entry => entry.id === id);
+    if (!arc || !sideQuestsUnlocked() || state.journal.arcs[id] || !arc.locations.includes(state.location)) return false;
+    state.journal.arcs[id] = {step:0,choices:[],baseline:0,claimed:false};
+    state.journal.tracked = `arc:${id}`;
+    autoSave(); render(); renderSideQuests(); openArc(id); return true;
+  }
+
+  function renderArcList() {
+    $("arcList").innerHTML = storyArcs.map(arc => {
+      const record = state.journal.arcs[arc.id], status = arcStatus(arc);
+      const complete = record && record.step === arc.stages.length;
+      const canStart = sideQuestsUnlocked() && arc.locations.includes(state.location);
+      return `<article class="side-quest arc-card"><small>${escapeHtml(arc.region)} · 3阶段 · 每次选择1个月</small><h3>${escapeHtml(arc.title)}</h3><p>${escapeHtml(arc.description)}</p><p>${escapeHtml(status.text)}</p><small>终章奖励：${rewardText(arc.reward)}</small>${record ? `<p>进度 ${record.step}/${arc.stages.length}${complete ? ` · ${escapeHtml(arcEnding(arc,record))}` : ""}</p>` : ""}<div><button data-arc="${arc.id}" data-arc-action="${record ? "open" : "start"}" ${!record && !canStart ? "disabled" : ""}>${!record ? "接取故事" : complete ? "查看结局" : "查看进展"}</button>${record && !record.claimed ? `<button data-track="arc:${arc.id}">${state.journal.tracked === `arc:${arc.id}` ? "正在追踪" : "追踪目标"}</button>` : ""}${complete && !record.claimed ? `<button data-arc="${arc.id}" data-arc-action="claim">领取结局奖励</button>` : ""}</div></article>`;
+    }).join("");
+    $("arcList").querySelectorAll("[data-arc]").forEach(button => button.addEventListener("click", () => {
+      const {arc,arcAction} = button.dataset;
+      if (arcAction === "start") startArc(arc);
+      else if (arcAction === "claim") claimArc(arc);
+      else openArc(arc);
+    }));
+    $("arcList").querySelectorAll("[data-track]").forEach(button => button.addEventListener("click", () => trackObjective(button.dataset.track)));
+    const list = $("sideQuestList");
+    sideQuests.forEach(quest => {
+      const record = state.quests.records[quest.id];
+      if (!record || record.claimed) return;
+      const card = list.querySelector(`[data-quest="${quest.id}"]`)?.closest("article");
+      if (!card) return;
+      const button = document.createElement("button"); button.type = "button";
+      button.textContent = state.journal.tracked === `quest:${quest.id}` ? "正在追踪" : "追踪目标";
+      button.addEventListener("click", () => trackObjective(`quest:${quest.id}`)); card.appendChild(button);
+    });
+  }
+
+  function openArc(id) {
+    const arc = storyArcs.find(entry => entry.id === id), record = state.journal.arcs[id];
+    if (!arc || !record) return false;
+    const complete = record.step === arc.stages.length, stage = arc.stages[record.step], stageIndex = record.step;
+    openedArc = {id,step:record.step};
+    $("arcTitle").textContent = `${arc.title} · ${complete ? "终章" : `${record.step + 1}/3`}`;
+    $("arcStory").textContent = complete ? `结局：${arcEnding(arc,record)}\n${arc.stages.at(-1).choices.find(choice => choice.id === record.choices.at(-1)).result}` : `${stage.title}\n\n${stage.text}${stage.echoes ? `\n\n${stage.echoes[record.choices[0]] || ""}` : ""}`;
+    $("arcRequirement").textContent = `${arcStatus(arc).text}。${complete ? "" : "接取后可在任何地点继续，选择推进1个月；不会替你跳过当前主线事件。"}`;
+    $("arcChoices").innerHTML = complete ? `<button type="button" data-arc-claim ${record.claimed ? "disabled" : ""}>${record.claimed ? "结局奖励已领取" : `领取：${rewardText(arc.reward)}`}</button>` : stage.choices.map(choice => `<button type="button" class="choice-button" data-arc-choice="${choice.id}" ${arcStatus(arc).ready ? "" : "disabled"}><b>${escapeHtml(choice.label)}</b><small>${escapeHtml(choice.hint)} · 人物经验 +5</small></button>`).join("");
+    $("arcChoices").querySelectorAll("[data-arc-choice]").forEach(button => button.addEventListener("click", () => resolveArc(id,stageIndex,button.dataset.arcChoice)));
+    $("arcChoices").querySelector("[data-arc-claim]")?.addEventListener("click", () => claimArc(id));
+    if (!complete && !arcStatus(arc).ready) {
+      const prepare = document.createElement("button"); prepare.type = "button"; prepare.textContent = "前往准备";
+      prepare.addEventListener("click", () => {
+        $("arcModal").close(); $("sideQuestModal").close();
+        if (stage.need.counter === "train") openSkills("magic");
+        else if (stage.need.counter === "travel") openMap();
+        else { document.querySelector(".daily-actions").scrollIntoView({block:"center"}); document.querySelector(`[data-daily="${stage.need.counter}"]`)?.focus(); }
+      });
+      $("arcChoices").appendChild(prepare);
+    }
+    $("arcRecall").innerHTML = record.choices.map((choiceId,index) => {
+      const previous = arc.stages[index], choice = previous.choices.find(entry => entry.id === choiceId);
+      return `<li><b>${escapeHtml(previous.title)}</b> · ${escapeHtml(choice.label)}<p>${escapeHtml(choice.result)}</p></li>`;
+    }).join("");
+    if (!$("arcModal").open) $("arcModal").showModal(); return true;
+  }
+
+  function resolveArc(id, expectedStep, choiceId) {
+    const arc = storyArcs.find(entry => entry.id === id), record = state.journal.arcs[id];
+    if (!arc || !record || record.step !== expectedStep || !arcStatus(arc).ready || openedArc?.id !== id || openedArc.step !== expectedStep) return false;
+    const choice = arc.stages[record.step]?.choices.find(entry => entry.id === choiceId);
+    if (!choice) return false;
+    openedArc = null; preservePendingEvent();
+    Object.entries(choice.effects || {}).forEach(([stat,amount]) => { state.stats[stat] = clamp(state.stats[stat] + amount); });
+    if (choice.relation) updateRelation(choice.relation);
+    record.choices.push(choice.id); record.step++;
+    const nextNeed = arc.stages[record.step]?.need;
+    record.baseline = nextNeed ? state.quests.counters[nextNeed.counter] : 0;
+    state.turn++; state.ageMonths++; state.story.sideSinceMain++; applyLivingCost(1,2); addProgress({xp:5,life:2});
+    state.journal.tracked = `arc:${id}`; state.currentEventId = "free_action"; state.phase = "result"; state.chapter = chapterForAge();
+    state.lastChoice = `${arc.title}：${choice.label}`; state.lastResult = choice.result;
+    state.history.unshift({age:formatAge(),location:state.location,title:arc.title,choice:choice.label,result:choice.result}); state.history = state.history.slice(0,40);
+    checkMilestones(); autoSave(); render(); renderSideQuests(); openArc(id); return true;
+  }
+
+  function claimArc(id) {
+    const arc = storyArcs.find(entry => entry.id === id), record = state.journal.arcs[id];
+    if (!arc || !record || record.step !== arc.stages.length || record.claimed) return false;
+    record.claimed = true; grantReward(arc.reward); addRegionalReputation(6,arc.region); unlock(arcEnding(arc,record)); logReward(arc.title,arc.reward);
+    if (state.journal.tracked === `arc:${id}`) state.journal.tracked = "";
+    checkMilestones(); autoSave(); render(); renderSideQuests();
+    if ($("arcModal").open) openArc(id); showToast(`故事完成：${arcEnding(arc,record)}`); return true;
+  }
+
+  function trackObjective(id) {
+    state.journal.tracked = id; autoSave(); renderObjective(); renderSideQuests();
+  }
+
+  function objectiveInfo() {
+    const tracked = state.journal.tracked;
+    const arc = storyArcs.find(entry => tracked === `arc:${entry.id}` && state.journal.arcs[entry.id] && !state.journal.arcs[entry.id].claimed);
+    if (arc) return {title:arc.title,text:arcStatus(arc).text,button:"查看故事",run:() => openArc(arc.id)};
+    const quest = sideQuests.find(entry => tracked === `quest:${entry.id}` && state.quests.records[entry.id] && !state.quests.records[entry.id].claimed);
+    if (quest) return {title:quest.name,text:`${quest.text} 当前 ${questProgress(quest)}/${quest.need}`,button:questProgress(quest) === quest.need ? "领取奖励" : "查看任务",run:() => questProgress(quest) === quest.need ? questAction(quest.id,"claim") : openQuestBoard()};
+    const reward = tutorialGoals.find(goal => goal.done(state) && !state.tutorial.claimed.includes(goal.id));
+    if (reward) return {title:"新手奖励待领取",text:`${reward.label} · ${rewardText(reward.reward)}`,button:"领取奖励",run:() => claimTutorial(reward.id)};
+    const main = mainQuestInfo();
+    return {title:main.name,text:main.requirement,button:"任务手册",run:openQuestBoard};
+  }
+
+  function renderObjective() {
+    const objective = objectiveInfo();
+    $("objectiveTitle").textContent = objective.title; $("objectiveText").textContent = objective.text;
+    $("objectiveAction").textContent = objective.button;
+  }
+
+  function openQuestBoard() { if (!state) return; renderSideQuests(); $("sideQuestModal").showModal(); }
+
+  function renderInventory() {
+    $("inventorySummary").textContent = `药品 ${state.inventory.medicine} · 行装耐久 ${state.equipment.durability}/100。装备加成仅在耐久大于0时生效。`;
+    $("useMedicineButton").disabled = !state.inventory.medicine || state.survival.fatigue <= 0;
+    $("inventoryItems").innerHTML = ["weapon","focus","armor"].map(slot => `<p>${({weapon:"武器",focus:"法器",armor:"护具"})[slot]}：${escapeHtml(state.equipment[slot])} · 当前有效加成 +${equipmentBonus(slot)}</p>`).join("") + equipmentCatalog.filter(item => state.inventory.ownedEquipment.includes(item.id)).map(item => `<article class="inventory-item"><div><b>${escapeHtml(item.name)}</b><p>${escapeHtml(item.description)}</p></div><button type="button" data-equip="${item.id}" ${state.equipment[item.type] === item.name ? "disabled" : ""}>${state.equipment[item.type] === item.name ? "已装备" : "装备"}</button></article>`).join("");
+    $("inventoryItems").querySelectorAll("[data-equip]").forEach(button => button.addEventListener("click", () => { buyItem(button.dataset.equip); renderInventory(); }));
+  }
+
+  function openInventory() { if (!state) return; renderInventory(); $("inventoryModal").showModal(); }
+
+  function useMedicine() {
+    if (!state || state.inventory.medicine < 1 || state.survival.fatigue <= 0) { showToast("没有可用药品，或当前无需恢复疲劳"); return false; }
+    const recovered = Math.min(25,state.survival.fatigue);
+    state.inventory.medicine--; state.survival.fatigue -= recovered; state.survival.morale = clamp(state.survival.morale + 4);
+    state.history.unshift({age:formatAge(),location:state.location,title:"使用药品",choice:"处理疲劳",result:`疲劳-${recovered}；药品-1，不推进时间。`}); state.history = state.history.slice(0,40);
+    autoSave(); render(); if ($("inventoryModal").open) renderInventory(); showToast(`疲劳恢复${recovered}，药品剩余${state.inventory.medicine}`); return true;
   }
 
   function renderTalents() {
@@ -783,7 +931,7 @@
     if (item.item) state.inventory[item.item] = (state.inventory[item.item] || 0) + 1;
     else if (item.type === "service") state.equipment.durability = 100;
     else { state.equipment[item.type] = item.name; state.equipment.bonuses[item.type] = item.bonus || 0; if (!canSwap) state.inventory.ownedEquipment.push(item.id); }
-    autoSave(); renderShop(); render(); showToast(`已购买：${item.name}`);
+    autoSave(); renderShop(); render(); showToast(`${canSwap ? "已装备" : "已购买"}：${item.name}`);
   }
 
   function isMainEvent(event) {
@@ -1032,6 +1180,7 @@
     renderHistory();
     renderStory();
     renderTutorial();
+    renderObjective();
   }
 
   function renderStory() {
@@ -1408,10 +1557,7 @@
     if (/(工作|赚钱|经商|售卖|打工)/.test(text)) return dailyAction("work");
     if (/(采集|找食物|寻找食物|觅食)/.test(text)) return dailyAction("forage");
     if (/(使用|服用).*(药|绷带)|疗伤药/.test(text)) {
-      if (!state.inventory.medicine) { $("freeActionHint").textContent = "没有药品，可在商店购买药草与绷带。"; return; }
-      preservePendingEvent(); state.inventory.medicine -= 1; state.survival.fatigue = clamp(state.survival.fatigue - 25); state.stats.vitality = clamp(state.stats.vitality + 8); state.survival.morale = clamp(state.survival.morale + 4);
-      state.turn++; state.ageMonths++; state.story.sideSinceMain++; state.currentEventId = "free_action"; state.lastChoice = text; state.lastResult = "你清理伤口、重新包扎并真正休息下来。疲劳降低25，体魄恢复8；药品已消耗。"; state.phase = "result";
-      state.history.unshift({ age: formatAge(), location: state.location, title: "使用物品", choice: text, result: state.lastResult }); state.history = state.history.slice(0,40); state.chapter = chapterForAge(); checkMilestones(); autoSave(); render(); return;
+      return useMedicine();
     }
     const namedDestination = Object.keys(worldLocations).find(name => text.includes(name));
     if (namedDestination && /(去|前往|旅行|出发|赶往|回到)/.test(text)) {
@@ -1501,8 +1647,8 @@
       title = "采集药草"; result = `你学习辨认药草，并在药师协助下处理成可用的药品。获得1份药品及${income}钱币，疲劳+5。可在自由行动输入“使用药品”。`;
     } else {
       const recovered = Math.min(state.survival.fatigue, REST_FATIGUE_RECOVERY);
-      state.survival.fatigue = clamp(state.survival.fatigue - REST_FATIGUE_RECOVERY); state.survival.morale = clamp(state.survival.morale + 8); state.stats.vitality = clamp(state.stats.vitality + 5);
-      title = "安心休息一天"; result = `你睡了一个好觉，第二天精神明显恢复。疲劳降低${recovered}（每天最多恢复${REST_FATIGUE_RECOVERY}）、士气+8、体魄+5。只经过1天，免费；不获得经验，也不增加主线准备进度。`;
+      state.survival.fatigue = clamp(state.survival.fatigue - REST_FATIGUE_RECOVERY); state.survival.morale = clamp(state.survival.morale + 8);
+      title = "安心休息一天"; result = `你睡了一个好觉，第二天精神明显恢复。疲劳降低${recovered}（每天最多恢复${REST_FATIGUE_RECOVERY}）、士气+8。只经过1天，免费；不获得经验或永久属性，也不增加主线准备进度。`;
     }
     state.turn++; state.freeActionCount++;
     if (action === "rest") {
@@ -1532,6 +1678,8 @@
   }
 
   const RECOVERY_KEY = "six-faced-life.before-import.v1";
+  const SLOT_RECOVERY_KEY = "six-faced-life.before-slot-change.v1";
+  let pendingSlotChange = null;
   let pendingImport = null, pendingUpload = null, accountBusy = false;
 
   function validateSave(input) {
@@ -1546,7 +1694,7 @@
       }
     };
     scan(input);
-    if (!input || typeof input !== "object" || !input.profile || !input.stats || (input.version && (![1,2,3,4,5].includes(input.version)))) fail();
+    if (!input || typeof input !== "object" || !input.profile || !input.stats || (input.version && (![1,2,3,4,5,6].includes(input.version)))) fail();
     const p = input.profile;
     if (typeof p.name !== "string" || !p.name.trim() || p.name.length > 40 || !Object.hasOwn(baseStats.identity,p.identity) || !Object.hasOwn(baseStats.race,p.race) || !Object.hasOwn(startAge,p.timeline) || !Object.hasOwn(worldLocations,p.location) || !Object.hasOwn(goalCopy,p.goal) || !Object.hasOwn(worldLocations,input.location)) fail();
     const shape = blankState(p);
@@ -1595,6 +1743,16 @@
       if (!Number.isInteger(record.start) || record.start < 0 || record.start > clean.quests.counters[quest.counter] || (record.claimed !== undefined && typeof record.claimed !== "boolean")) fail();
       clean.quests.records[quest.id] = {start:record.start,claimed:!!record.claimed};
     }
+    clean.journal.arcs = {};
+    for (const [arcId,record] of Object.entries(saved.journal.arcs)) {
+      const arc = storyArcs.find(entry => entry.id === arcId);
+      if (!arc || !record || !Number.isInteger(record.step) || record.step < 0 || record.step > arc.stages.length || !Array.isArray(record.choices) || record.choices.length !== record.step || typeof record.claimed !== "boolean" || (record.claimed && record.step !== arc.stages.length) || !Number.isInteger(record.baseline) || record.baseline < 0) fail();
+      record.choices.forEach((choiceId,index) => { if (!arc.stages[index].choices.some(choice => choice.id === choiceId)) fail(); });
+      const need = arc.stages[record.step]?.need;
+      if (need && record.baseline > clean.quests.counters[need.counter]) fail();
+      clean.journal.arcs[arcId] = {step:record.step,choices:[...record.choices],baseline:record.baseline,claimed:record.claimed};
+    }
+    if (clean.journal.tracked && ![...storyArcs.map(arc=>`arc:${arc.id}`),...sideQuests.map(quest=>`quest:${quest.id}`)].includes(clean.journal.tracked)) fail();
     if (saved.resumeEventId) { if (typeof saved.resumeEventId !== "string") fail(); clean.resumeEventId = saved.resumeEventId; }
     const validEvent = id => ["opening","life_folio","travel_arrival","free_action"].includes(id) || events.some(event => event.id === id) || (/^routine-\d+$/.test(id) && Number(id.slice(8)) < routineTemplates.length);
     if (!validEvent(clean.currentEventId) || (clean.resumeEventId && !validEvent(clean.resumeEventId))) fail();
@@ -1701,14 +1859,17 @@
     saved.regionalReputation = { ...defaults.regionalReputation, ...saved.regionalReputation };
     saved.tutorial = { actions: Array.isArray(saved.tutorial?.actions) ? saved.tutorial.actions : [], claimed: Array.isArray(saved.tutorial?.claimed) ? saved.tutorial.claimed.filter(id => id === "graduation" || tutorialGoals.some(goal => goal.id === id)) : [] };
     saved.quests = { counters: { ...defaults.quests.counters, ...saved.quests?.counters }, records: { ...saved.quests?.records } };
+    saved.journal = {tracked:"",arcs:{},...saved.journal};
     saved.encounterCount = saved.encounterCount || 0;
-    saved.version = 5;
+    saved.version = 6;
     return saved;
   }
 
   function loadState(saved) {
-    state = migrateState(saved);
-    if (!state) return false;
+    let nextState;
+    try { nextState = validateSave(saved); }
+    catch { showToast("存档损坏或版本不支持，原数据未覆盖；可尝试手动存档或 JSON 备份。"); return false; }
+    state = nextState;
     refreshUnlockedLocations();
     autoSave();
     $("startModal").close();
@@ -1717,13 +1878,20 @@
     return true;
   }
 
-  function slots() { return safeParse(localStorage.getItem(SLOT_KEY)) || [null, null, null]; }
+  function slots() {
+    const raw = localStorage.getItem(SLOT_KEY);
+    if (!raw) return [null,null,null];
+    const items = safeParse(raw);
+    if (!Array.isArray(items) || items.length !== 3) throw new Error("存档库格式损坏，未覆盖原始数据");
+    return items;
+  }
   function writeSlots(items) { localStorage.setItem(SLOT_KEY, JSON.stringify(items)); }
 
   function renderSlots() {
-    const items = slots();
+    let items;
+    try { items = slots(); } catch (error) { $("saveSlots").textContent = error.message; return; }
     $("saveSlots").innerHTML = items.map((item, index) => {
-      const summary = item ? `${item.profile.name} · ${formatSavedAge(item.ageMonths,item.ageDays)} · ${item.location} · ${new Date(item.updatedAt).toLocaleString("zh-CN")}` : "空存档位";
+      const summary = item ? `${item.profile?.name || "无法识别的存档"} · ${formatSavedAge(item.ageMonths || 0,item.ageDays)} · ${item.location || "未知地点"} · ${new Date(item.updatedAt).toLocaleString("zh-CN")}` : "空存档位";
       return `<div class="save-slot"><div><h3>命运书页 ${index + 1}</h3><p>${escapeHtml(summary)}</p></div><div class="slot-actions"><button data-save-slot="${index}">${item ? "覆盖" : "保存"}</button>${item ? `<button data-load-slot="${index}">读取</button><button class="delete-slot" data-delete-slot="${index}">删除</button>` : ""}</div></div>`;
     }).join("");
     document.querySelectorAll("[data-save-slot]").forEach(button => button.addEventListener("click", () => saveSlot(Number(button.dataset.saveSlot))));
@@ -1736,34 +1904,58 @@
     return (rest ? `${years}岁${rest}个月` : `${years}岁`) + (days ? `${days}天` : "");
   }
 
-  function saveSlot(index) {
-    const items = slots();
+  function requestSlotChange(action,index) {
+    const item = slots()[index];
+    pendingSlotChange = {action,index,expected:JSON.stringify(item)};
+    $("slotChangeTitle").textContent = action === "save" ? "覆盖已有存档？" : "删除这个存档？";
+    $("slotChangeText").textContent = `命运书页 ${index + 1}：${item?.profile?.name || "未知旅人"}。确认后会保留一份被覆盖或删除的原始存档，可在命运书库恢复。再次操作会替换这份备份。`;
+    $("slotChangeModal").showModal();
+  }
+
+  function confirmSlotChange() {
+    const change = pendingSlotChange; pendingSlotChange = null;
+    if (!change) return false;
+    $("slotChangeModal").close();
+    try {
+      if (JSON.stringify(slots()[change.index]) !== change.expected) { showToast("此存档已在其他页面改变，请重新检查"); return false; }
+      return change.action === "save" ? saveSlot(change.index,true) : deleteSlot(change.index,true);
+    } catch (error) { showToast(error.message); return false; }
+  }
+
+  function backupSlot(item) {
+    localStorage.setItem(SLOT_RECOVERY_KEY,JSON.stringify({format:"six-faced-life-save",version:1,state:item}));
+  }
+
+  function saveSlot(index, confirmed = false) {
+    if (!state || !Number.isInteger(index) || index < 0 || index > 2) return false;
+    let items;
+    try { items = slots(); } catch (error) { showToast(error.message); return false; }
+    if (items[index] && !confirmed) { requestSlotChange("save",index); return false; }
+    try { if (items[index]) backupSlot(items[index]); } catch { showToast("无法备份旧档，本次覆盖已取消"); return false; }
     items[index] = deepCopy(state);
     if (!items[index].tutorial.actions.includes("save")) items[index].tutorial.actions.push("save");
     items[index].updatedAt = new Date().toISOString();
-    try { writeSlots(items); } catch { showToast("存档位保存失败，请导出备份"); return; }
-    markTutorial("save"); checkMilestones(); autoSave(); renderTutorial();
+    try { writeSlots(items); } catch { showToast("存档位保存失败，请导出备份"); return false; }
+    markTutorial("save"); checkMilestones(); autoSave(); renderTutorial(); renderObjective();
     renderSlots();
-    showToast(`已保存到命运书页 ${index + 1}`);
+    showToast(`已保存到命运书页 ${index + 1}`); return true;
   }
 
   function loadSlot(index) {
-    const saved = slots()[index];
-    if (!saved) return;
-    state = migrateState(deepCopy(saved));
-    refreshUnlockedLocations();
-    autoSave();
-    render();
-    $("saveModal").close();
-    showToast(`已读取命运书页 ${index + 1}`);
+    try {
+      const saved = slots()[index]; if (!saved) return false;
+      previewImport({format:"six-faced-life-save",version:1,state:saved},`命运书页 ${index + 1}`); return true;
+    } catch (error) { showToast(error.message); return false; }
   }
 
-  function deleteSlot(index) {
-    const items = slots();
-    items[index] = null;
-    writeSlots(items);
-    renderSlots();
-    showToast(`已删除命运书页 ${index + 1}`);
+  function deleteSlot(index, confirmed = false) {
+    if (!Number.isInteger(index) || index < 0 || index > 2) return false;
+    try {
+      const items = slots(); if (!items[index]) return false;
+      if (!confirmed) { requestSlotChange("delete",index); return false; }
+      backupSlot(items[index]); items[index] = null; writeSlots(items); renderSlots();
+      showToast(`已删除命运书页 ${index + 1}，可从最近覆盖/删除备份恢复`); return true;
+    } catch { showToast("未能完成备份或删除，原存档保留"); return false; }
   }
 
   function randomizeForm() {
@@ -1819,6 +2011,17 @@
   }
 
   $("startForm").addEventListener("submit", startFromForm);
+  $("objectiveAction").addEventListener("click", () => state && objectiveInfo().run());
+  $("questQuickButton").addEventListener("click", openQuestBoard);
+  $("inventoryButton").addEventListener("click", openInventory);
+  $("useMedicineButton").addEventListener("click", useMedicine);
+  $("inventoryShopButton").addEventListener("click", () => { $("inventoryModal").close(); openShop(); });
+  $("arcModal").addEventListener("close", () => { openedArc = null; });
+  $("confirmSlotChange").addEventListener("click", confirmSlotChange);
+  $("slotChangeModal").addEventListener("close", () => { pendingSlotChange = null; });
+  $("recoverSlotButton").addEventListener("click", () => {
+    try { const backup = safeParse(localStorage.getItem(SLOT_RECOVERY_KEY)); if (!backup) return showToast("尚无覆盖/删除备份"); previewImport(backup,"覆盖/删除前存档"); } catch (error) { showToast(error.message); }
+  });
   $("exportSaveButton").addEventListener("click", exportSave);
   document.querySelectorAll("[data-import-save]").forEach(button => button.addEventListener("click", () => $("importSaveInput").click()));
   $("importSaveInput").addEventListener("change", async event => {
@@ -1852,7 +2055,7 @@
   $("accountModal").addEventListener("close", () => { $("accountPassword").value = ""; });
   $("importModal").addEventListener("close", () => { pendingImport = null; });
   $("uploadModal").addEventListener("close", () => { pendingUpload = null; });
-  $("questsButton").addEventListener("click", () => { renderSideQuests(); $("sideQuestModal").showModal(); });
+  $("questsButton").addEventListener("click", openQuestBoard);
   $("shopButton").addEventListener("click", openShop);
   $("mobilePanelToggle").addEventListener("click", () => {
     const collapsed = document.querySelector(".character-panel").classList.toggle("mobile-collapsed");

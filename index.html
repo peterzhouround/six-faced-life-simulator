@@ -8,7 +8,7 @@
   <meta name="description" content="原创六面世界题材的浏览器人生模拟文字冒险：自由开局、成长选择、自动存档与多存档位。">
   <title>六面世界：第二人生</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='8' fill='%23101a24'/%3E%3Cpath d='M32 9 53 21v22L32 55 11 43V21z' fill='none' stroke='%23e4c486' stroke-width='3'/%3E%3Ctext x='32' y='41' text-anchor='middle' font-size='28' fill='%23e4c486'%3E六%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=5.0.2">
+  <link rel="stylesheet" href="styles.css?v=6.0.0">
 </head>
 <body>
   <a class="skip-link" href="#storyCard">跳到剧情</a>
@@ -93,6 +93,11 @@
           <button type="button" data-daily="rest" title="只经过1天，免费恢复最多60点疲劳">休息1天</button>
         </section>
         <article class="story-card" id="storyCard" aria-live="polite" tabindex="-1">
+          <section class="objective-card" aria-label="当前追踪目标">
+            <div><small>当前目标</small><h3 id="objectiveTitle">从一个选择开始</h3><p id="objectiveText">选择行动，书写自己的故事。</p></div>
+            <button type="button" id="objectiveAction">任务手册</button>
+          </section>
+          <div class="adventure-tools"><button type="button" id="questQuickButton">任务与故事</button><button type="button" id="inventoryButton">背包与装备</button></div>
           <div class="story-icon" id="storyIcon" aria-hidden="true">✦</div>
           <p class="story-kicker" id="eventKicker">新的生命</p>
           <h2 id="eventTitle">意识自黑暗中浮起</h2>
@@ -159,7 +164,7 @@
     </main>
 
     <footer>
-      <p>非官方同人性质的原创规则实验 · v5 新手奖励与支线 · 默认本机保存，云端需主动登录上传</p>
+      <p>非官方同人性质的原创规则实验 · v6 旅人的委托 · 默认本机保存，云端需主动登录上传</p>
     </footer>
   </div>
 
@@ -218,6 +223,7 @@
     <div class="modal-heading"><div><p class="eyebrow">ARCHIVE</p><h2>命运书库</h2></div><button class="icon-button" data-close="saveModal" aria-label="关闭">×</button></div>
     <p class="modal-note">自动存档会在每次选择后更新；三个手动存档位可保留不同人生节点。</p>
     <div class="save-slots" id="saveSlots"></div>
+    <button type="button" class="restore-slot-button" id="recoverSlotButton">恢复最近覆盖/删除的存档</button>
     <section class="backup-section"><h3>备份与跨设备</h3>
       <p class="modal-note">本机存档不需要登录。换浏览器、清除网站数据或无痕模式可能丢档，请定期导出 JSON；传记 TXT 不能恢复游戏。</p>
       <div class="dialog-actions"><button type="button" id="exportSaveButton">导出存档 JSON</button><button type="button" data-import-save>导入存档文件</button><button type="button" id="recoverSaveButton">恢复导入前备份</button><button type="button" data-open-account>登录 / 云存档</button></div>
@@ -252,8 +258,27 @@
   </dialog>
 
   <dialog class="modal save-modal" id="sideQuestModal">
-    <div class="modal-heading"><h2>可选支线任务</h2><button class="icon-button" data-close="sideQuestModal" aria-label="关闭">×</button></div>
-    <p class="modal-note" id="sideQuestStatus"></p><div id="sideQuestList"></div>
+    <div class="modal-heading"><h2>任务与故事</h2><button class="icon-button" data-close="sideQuestModal" aria-label="关闭">×</button></div>
+    <p class="modal-note" id="sideQuestStatus"></p>
+    <h3>旅人的委托</h3><p class="modal-note">原著世界观下的原创支线。前面的选择会在后文回响，每阶段之间需要实际行动；接取后可异地继续，结局永久保存在本轮存档。</p><div id="arcList"></div>
+    <details class="routine-quests" open><summary>日常委托 · 自愿完成</summary><div id="sideQuestList"></div></details>
+  </dialog>
+
+  <dialog class="modal save-modal" id="arcModal">
+    <div class="modal-heading"><h2 id="arcTitle">旅人的委托</h2><button class="icon-button" data-close="arcModal" aria-label="关闭">×</button></div>
+    <p class="arc-prose" id="arcStory"></p><p class="modal-note" id="arcRequirement"></p><div class="choice-list" id="arcChoices"></div>
+    <details class="arc-recall"><summary>回顾此前的选择</summary><ol id="arcRecall"></ol></details>
+  </dialog>
+
+  <dialog class="modal save-modal" id="inventoryModal">
+    <div class="modal-heading"><h2>背包与装备</h2><button class="icon-button" data-close="inventoryModal" aria-label="关闭">×</button></div>
+    <p id="inventorySummary"></p><p class="modal-note">药品立即恢复最多25疲劳，不推进时间；疲劳为0时不会消耗。体魄是长期能力，休息或用药不会增加永久属性。</p>
+    <div class="dialog-actions"><button type="button" id="useMedicineButton">使用一份药品</button><button type="button" id="inventoryShopButton">商店 / 保养装备</button></div><div id="inventoryItems"></div>
+  </dialog>
+
+  <dialog class="modal save-modal" id="slotChangeModal">
+    <div class="modal-heading"><h2 id="slotChangeTitle">确认更改存档</h2><button class="icon-button" data-close="slotChangeModal" aria-label="关闭">×</button></div>
+    <p id="slotChangeText"></p><div class="dialog-actions"><button type="button" data-close="slotChangeModal">取消</button><button type="button" id="confirmSlotChange">确认更改</button></div>
   </dialog>
 
   <dialog class="modal full-map-modal" id="mapModal">
@@ -336,8 +361,9 @@
   </dialog>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <script src="cloud-config.js?v=5.0.2"></script>
-  <script src="cloud.js?v=5.0.2"></script>
-  <script src="game.js?v=5.0.2"></script>
+  <script src="cloud-config.js?v=6.0.0"></script>
+  <script src="cloud.js?v=6.0.0"></script>
+  <script src="story-arcs.js?v=6.0.0"></script>
+  <script src="game.js?v=6.0.0"></script>
 </body>
 </html>

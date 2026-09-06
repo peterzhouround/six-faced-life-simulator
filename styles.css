@@ -166,6 +166,15 @@ button:disabled { opacity:.5;cursor:default; }
 .start-actions #beginButton,.start-actions #continueButton { grid-column:1/-1;min-height:48px; }
 .start-actions button { min-width:0;min-height:44px; }
 .modal.save-modal { max-height:calc(100dvh - 1rem);overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;touch-action:pan-y; }
+.objective-card { display:flex;align-items:center;gap:1rem;border-left:3px solid var(--gold);padding:.9rem;background:#e9e3d5;margin:0 0 .75rem; }
+.objective-card > div { flex:1;min-width:0; }.objective-card h3 { margin:.2rem 0;font-size:1rem; }.objective-card p { margin:.3rem 0;font-size:.875rem;line-height:1.65;overflow-wrap:anywhere; }.objective-card small { color:var(--green);font-size:.875rem; }
+.objective-card button,.adventure-tools button,.restore-slot-button,#inventoryModal button,#slotChangeModal button,#arcModal button { min-height:44px;border:1px solid var(--green);background:#fffaf0;color:var(--green);padding:.65rem;font-size:.9rem; }
+.objective-card button { flex-shrink:0; }.adventure-tools { display:flex;gap:.6rem;margin-bottom:1.5rem; }.adventure-tools button { flex:1; }
+.arc-card { border-left:3px solid var(--gold); }.arc-card small { font-size:.875rem;line-height:1.6; }.arc-card p,.arc-recall { font-size:1rem;line-height:1.8; }
+.arc-prose { white-space:pre-line;font-size:1rem;line-height:1.95; }.arc-recall,.routine-quests { margin-top:1.5rem; }.arc-recall summary,.routine-quests summary { min-height:44px;cursor:pointer;line-height:1.8; }
+.inventory-item { display:flex;align-items:center;gap:1rem;border-top:1px solid var(--line);padding:1rem 0; }.inventory-item > div { flex:1; }.inventory-item p,#inventorySummary,#slotChangeText { line-height:1.8;overflow-wrap:anywhere; }.restore-slot-button { margin-top:1rem; }
+@media(max-width:430px) { .objective-card { display:block; }.objective-card button { width:100%;margin-top:.6rem; }.inventory-item { flex-wrap:wrap; }.inventory-item button { width:100%; } }
+@media(prefers-reduced-motion:reduce) { html { scroll-behavior:auto; } *,*::before,*::after { transition:none!important; } }
 @media(max-width:760px) {
   .page-shell { padding-bottom:calc(74px + env(safe-area-inset-bottom)); }
   .mobile-nav { position:fixed;bottom:0;left:0;right:0;z-index:30;display:grid;grid-template-columns:repeat(6,1fr);gap:.2rem;background:var(--night);padding:.45rem .4rem calc(.45rem + env(safe-area-inset-bottom));border-top:1px solid var(--gold); }
